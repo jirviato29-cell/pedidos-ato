@@ -8,14 +8,12 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "clave-secreta-pedidos")
 
 def get_db():
-    url = os.environ.get("DATABASE_URL")
-    r = urllib.parse.urlparse(url)
     conn = pg8000.dbapi.connect(
-        host=r.hostname,
-        port=r.port or 5432,
-        database=r.path[1:],
-        user=r.username,
-        password=r.password,
+        host="junction.proxy.rlwy.net",
+        port=19313,
+        database="railway",
+        user="postgres",
+        password="wsaHJnpOjtdOluEpcJxxhmwptubxTvZU",
         ssl_context=False
     )
     return conn
