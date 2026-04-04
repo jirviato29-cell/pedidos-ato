@@ -3,7 +3,6 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "clave-secreta-pedidos")
@@ -38,18 +37,7 @@ def init_db():
             fecha_creacion TIMESTAMP DEFAULT NOW(),
             fecha_actualizacion TIMESTAMP DEFAULT NOW()
         );
-        CREATE TABLE IF NOT EXISTS pedidos_especiales (
-            id SERIAL PRIMARY KEY,
-            tienda TEXT NOT NULL,
-            usuario_id INTEGER REFERENCES usuarios(id),
-            producto TEXT NOT NULL,
-            cantidad TEXT NOT NULL,
-            nota TEXT,
-            estado TEXT DEFAULT 'pendiente',
-            fecha_creacion TIMESTAMP DEFAULT NOW()
-        );
     """)
-    # Admin por defecto
     cur.execute("SELECT id FROM usuarios WHERE usuario = 'admin'")
     if not cur.fetchone():
         cur.execute("""
@@ -94,8 +82,6 @@ def dashboard():
         return redirect(url_for('index'))
     return render_template('dashboard.html', rol=session['rol'], nombre=session['nombre'], tienda=session['tienda'])
 
-# ─── PEDIDOS ───────────────────────────────────────────────────────────────────
-
 @app.route('/api/pedidos', methods=['GET'])
 def get_pedidos():
     if 'usuario_id' not in session:
@@ -129,7 +115,7 @@ def crear_pedido():
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO pedidos (tipo, tienda, usuario_id, producto, cantidad, urgencia, nota)
-        VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
     """, (
         data.get('tipo', 'modulo'),
         session['tienda'],
@@ -167,7 +153,7 @@ def mas_solicitados():
     conn = get_db()
     cur = conn.cursor()
     cur.execute("""
-        SELECT producto, COUNT(DISTINCT tienda) as tiendas, SUM(CAST(cantidad AS INTEGER)) as total
+        SELECT producto, COUNT(DISTINCT tienda) as tiendas, COUNT(*) as total
         FROM pedidos WHERE estado = 'pendiente'
         GROUP BY producto ORDER BY tiendas DESC, total DESC LIMIT 20
     """)
@@ -212,7 +198,7 @@ def crear_usuario():
         ))
         conn.commit()
         return jsonify({'ok': True})
-    except Exception as e:
+    except Exception:
         conn.rollback()
         return jsonify({'ok': False, 'msg': 'Usuario ya existe'})
     finally:
@@ -227,19 +213,22 @@ def whatsapp_link(pid):
     cur = conn.cursor()
     cur.execute("""
         SELECT p.*, u.telefono, u.nombre as encargado_nombre
-        FROM pedidos p LEFT JOIN usuarios u ON u.tienda = p.tienda AND u.rol = 'encargado'
+        FROM pedidos p
+        LEFT JOIN usuarios u ON u.tienda = p.tienda AND u.rol = 'encargado'
         WHERE p.id = %s LIMIT 1
     """, (pid,))
     p = cur.fetchone()
     cur.close()
     conn.close()
-    if not p:
-        return jsonify({'ok': False})
+    if not p or not p['telefono']:
+        return jsonify({'ok': False, 'msg': 'Sin teléfono'})
     msg = f"Hola {p['encargado_nombre']}, ya llegó la mercancía de *{p['producto']}* para tu tienda *{p['tienda']}*. Por favor recógela mañana. ✅"
     link = f"https://wa.me/52{p['telefono']}?text={msg.replace(' ', '%20')}"
     return jsonify({'ok': True, 'link': link})
 
-if __name__ == '__main__':
+with app.app_context():
     init_db()
+
+if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
