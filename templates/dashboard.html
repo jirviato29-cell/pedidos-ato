@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pedidos ATO</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#0f0f1a;color:#fff;font-family:system-ui,sans-serif;min-height:100vh;}
+  .topbar{background:#1a1a2e;border-bottom:1px solid #2a2a4a;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;}
+  .topbar h1{font-size:18px;font-weight:700;color:#fff;}
+  .topbar span{font-size:12px;color:#8888aa;}
+  .logout{color:#ff6666;font-size:13px;text-decoration:none;margin-left:16px;}
+  .tabs{display:flex;gap:4px;padding:16px 16px 0;overflow-x:auto;border-bottom:1px solid #2a2a4a;}
+  .tab{padding:10px 16px;border-radius:8px 8px 0 0;font-size:13px;font-weight:600;cursor:pointer;color:#8888aa;white-space:nowrap;border:none;background:none;transition:all .2s;}
+  .tab.active{background:#1a1a2e;color:#6c63ff;border:1px solid #2a2a4a;border-bottom:1px solid #1a1a2e;}
+  .tab:hover:not(.active){color:#fff;}
+  .panel{display:none;padding:20px 16px;}
+  .panel.active{display:block;}
+  .card{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:12px;padding:16px;margin-bottom:12px;}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+  .badge.alta{background:#3a1a1a;color:#ff6666;}
+  .badge.media{background:#3a2a00;color:#ffaa00;}
+  .badge.baja{background:#0a2a1a;color:#44cc88;}
+  .badge.pendiente{background:#1a1a3a;color:#8888ff;}
+  .badge.camino{background:#3a2a00;color:#ffaa00;}
+  .badge.llegó{background:#0a2a1a;color:#44cc88;}
+  .badge.modulo{background:#1a1a3a;color:#aaaaff;}
+  .badge.bodega{background:#2a1a3a;color:#cc88ff;}
+  label{display:block;color:#aaaacc;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;margin-top:14px;}
+  input,select,textarea{width:100%;background:#0f0f1a;border:1px solid #2a2a4a;border-radius:8px;padding:11px 13px;color:#fff;font-size:14px;outline:none;transition:border .2s;}
+  input:focus,select:focus,textarea:focus{border-color:#6c63ff;}
+  select option{background:#1a1a2e;}
+  textarea{resize:vertical;min-height:70px;}
+  .btn{display:inline-block;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .2s;}
+  .btn-primary{background:#6c63ff;color:#fff;}
+  .btn-primary:hover{background:#574fd6;}
+  .btn-success{background:#1a4a2a;color:#44cc88;border:1px solid #2a6a3a;}
+  .btn-success:hover{background:#2a5a3a;}
+  .btn-warn{background:#3a2a00;color:#ffaa00;border:1px solid #5a4a00;}
+  .btn-danger{background:#3a1a1a;color:#ff6666;border:1px solid #5a2a2a;}
+  .btn-wa{background:#1a3a1a;color:#44cc44;border:1px solid #2a5a2a;}
+  .btn-wa:hover{background:#2a4a2a;}
+  .btn-sm{padding:6px 12px;font-size:12px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .stat{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:12px;padding:16px;text-align:center;}
+  .stat .num{font-size:32px;font-weight:700;color:#6c63ff;}
+  .stat .lbl{font-size:12px;color:#8888aa;margin-top:4px;}
+  .pedido-header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  .pedido-producto{font-size:16px;font-weight:700;color:#fff;}
+  .pedido-meta{font-size:12px;color:#8888aa;margin-top:4px;}
+  .pedido-acciones{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .divider{height:1px;background:#2a2a4a;margin:16px 0;}
+  .empty{text-align:center;color:#8888aa;padding:40px 20px;font-size:14px;}
+  .alert-ok{background:#0a2a1a;border:1px solid #2a5a3a;border-radius:8px;color:#44cc88;padding:10px 14px;margin-bottom:12px;display:none;font-size:13px;}
+  .section-title{font-size:15px;font-weight:700;color:#aaaacc;margin-bottom:12px;}
+  .top-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #2a2a4a;}
+  .top-item:last-child{border-bottom:none;}
+  .top-num{font-size:20px;font-weight:700;color:#6c63ff;min-width:32px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>📦 Pedidos ATO</h1>
+    <span id="info-rol"></span>
+  </div>
+  <div>
+    <span id="info-nombre" style="color:#aaaacc;font-size:13px;"></span>
+    <a href="/logout" class="logout">Salir</a>
+  </div>
+</div>
+
+<div class="tabs" id="tabs"></div>
+<div id="panels"></div>
+
+<script>
+const ROL = "{{ rol }}";
+const NOMBRE = "{{ nombre }}";
+const TIENDA = "{{ tienda }}";
+
+document.getElementById('info-nombre').textContent = NOMBRE;
+document.getElementById('info-rol').textContent = ROL === 'bodega' ? 'Bodega / Admin' : ROL === 'encargado' ? `Encargado · ${TIENDA}` : `Asesor · ${TIENDA}`;
+
+// ── Tabs config por rol ──────────────────────────────────────────────────────
+const TABS = {
+  asesor: [
+    {id:'nuevo', label:'➕ Nuevo pedido'},
+    {id:'mis', label:'📋 Mis pedidos'},
+  ],
+  encargado: [
+    {id:'asesores', label:'👥 Asesores'},
+    {id:'nuevo', label:'➕ Nuevo pedido'},
+    {id:'mis', label:'📋 Pedidos tienda'},
+    {id:'usuarios', label:'👤 Usuarios'},
+  ],
+  bodega: [
+    {id:'todos', label:'📋 Todos'},
+    {id:'urgentes', label:'🔴 Urgentes'},
+    {id:'top', label:'🔥 Más pedidos'},
+    {id:'historial', label:'✅ Historial'},
+    {id:'usuarios', label:'👤 Usuarios'},
+  ]
+};
+
+const tabs = TABS[ROL] || TABS.asesor;
+const tabsEl = document.getElementById('tabs');
+const panelsEl = document.getElementById('panels');
+
+tabs.forEach((t, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'tab' + (i===0?' active':'');
+  btn.textContent = t.label;
+  btn.onclick = () => activarTab(t.id);
+  btn.dataset.id = t.id;
+  tabsEl.appendChild(btn);
+
+  const div = document.createElement('div');
+  div.className = 'panel' + (i===0?' active':'');
+  div.id = 'panel-' + t.id;
+  panelsEl.appendChild(div);
+});
+
+function activarTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.id===id));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id==='panel-'+id));
+  cargarPanel(id);
+}
+
+// ── Cargar panels ────────────────────────────────────────────────────────────
+function cargarPanel(id) {
+  if(id==='nuevo') renderNuevo();
+  else if(id==='mis') cargarPedidos('mis');
+  else if(id==='asesores') cargarPedidos('asesores');
+  else if(id==='todos') cargarPedidos('todos');
+  else if(id==='urgentes') cargarPedidos('urgentes');
+  else if(id==='historial') cargarPedidos('historial');
+  else if(id==='top') cargarTop();
+  else if(id==='usuarios') cargarUsuarios();
+}
+
+// ── Formulario nuevo pedido ──────────────────────────────────────────────────
+function renderNuevo() {
+  const p = document.getElementById('panel-nuevo');
+  const esBodega = ROL==='bodega';
+  const esAsesor = ROL==='asesor';
+  p.innerHTML = `
+    <div class="alert-ok" id="ok-nuevo">✅ Pedido enviado correctamente</div>
+    <div class="card">
+      <div class="section-title">Nuevo pedido</div>
+      ${!esAsesor ? `
+      <label>Tipo de pedido</label>
+      <select id="np-tipo">
+        <option value="modulo">📦 Módulo — lo que piden los asesores</option>
+        <option value="bodega">🚨 Bodega — pedido urgente a surtir</option>
+      </select>` : ''}
+      <label>Producto / artículo</label>
+      <input id="np-prod" placeholder="Ej: Carne de res, Chorizo, Jamón...">
+      <label>Cantidad</label>
+      <input id="np-cant" placeholder="Ej: 5 kg, 3 cajas, 10 piezas">
+      ${!esAsesor ? `
+      <label>Urgencia</label>
+      <select id="np-urg">
+        <option value="alta">🔴 Alta — lo necesito ya</option>
+        <option value="media" selected>🟡 Media — esta semana</option>
+        <option value="baja">🟢 Baja — cuando se pueda</option>
+      </select>` : ''}
+      <label>Nota (opcional)</label>
+      <textarea id="np-nota" placeholder="Cualquier detalle adicional..."></textarea>
+      <div style="margin-top:16px;">
+        <button class="btn btn-primary" onclick="enviarPedido()">Enviar pedido</button>
+      </div>
+    </div>`;
+}
+
+async function enviarPedido() {
+  const prod = document.getElementById('np-prod').value.trim();
+  const cant = document.getElementById('np-cant').value.trim();
+  if(!prod||!cant){ alert('Escribe el producto y la cantidad'); return; }
+  const tipo = document.getElementById('np-tipo')?.value || 'modulo';
+  const urg = document.getElementById('np-urg')?.value || 'media';
+  const nota = document.getElementById('np-nota').value.trim();
+  const res = await fetch('/api/pedidos', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({producto:prod, cantidad:cant, tipo, urgencia:urg, nota})
+  });
+  const data = await res.json();
+  if(data.ok){
+    document.getElementById('np-prod').value='';
+    document.getElementById('np-cant').value='';
+    if(document.getElementById('np-nota')) document.getElementById('np-nota').value='';
+    const ok = document.getElementById('ok-nuevo');
+    ok.style.display='block';
+    setTimeout(()=>ok.style.display='none', 3000);
+  }
+}
+
+// ── Listar pedidos ───────────────────────────────────────────────────────────
+async function cargarPedidos(modo) {
+  const panelId = modo==='mis'||modo==='asesores'?modo : modo==='urgentes'||modo==='historial'?modo:'todos';
+  const p = document.getElementById('panel-'+panelId);
+  p.innerHTML = '<div class="empty">Cargando...</div>';
+  const res = await fetch('/api/pedidos');
+  const todos = await res.json();
+
+  let lista = todos;
+  if(modo==='mis') lista = todos.filter(x=>x.estado!=='llegó');
+  else if(modo==='asesores') lista = todos.filter(x=>x.tipo==='modulo'&&x.estado!=='llegó');
+  else if(modo==='urgentes') lista = todos.filter(x=>x.urgencia==='alta'&&x.estado!=='llegó');
+  else if(modo==='historial') lista = todos.filter(x=>x.estado==='llegó');
+  else if(modo==='todos') lista = todos.filter(x=>x.estado!=='llegó');
+
+  if(!lista.length){ p.innerHTML='<div class="empty">No hay pedidos aquí</div>'; return; }
+
+  p.innerHTML = lista.map(ped => {
+    const fecha = new Date(ped.fecha_creacion).toLocaleDateString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    const acciones = renderAcciones(ped, modo);
+    return `<div class="card">
+      <div class="pedido-header">
+        <span class="pedido-producto">${ped.producto}</span>
+        <span class="badge ${ped.urgencia||'media'}">${ped.urgencia||'media'}</span>
+        <span class="badge ${ped.estado}">${ped.estado}</span>
+        <span class="badge ${ped.tipo}">${ped.tipo}</span>
+      </div>
+      <div class="pedido-meta">
+        🏪 ${ped.tienda} · 👤 ${ped.solicitante||'—'} · 📦 ${ped.cantidad} · 🗓 ${fecha}
+        ${ped.nota?`<br>📝 ${ped.nota}`:''}
+        ${ped.fecha_estimada?`<br>🚚 Llega: <b style="color:#ffaa00">${ped.fecha_estimada}</b>`:''}
+      </div>
+      ${acciones}
+    </div>`;
+  }).join('');
+}
+
+function renderAcciones(ped, modo) {
+  if(ROL==='asesor') return '';
+  if(ROL==='encargado' && modo==='asesores' && ped.estado==='pendiente') {
+    return `<div class="pedido-acciones">
+      <button class="btn btn-success btn-sm" onclick="cambiarEstado(${ped.id},'llegó',null,'${modo}')">✅ Ya lo llevé</button>
+    </div>`;
+  }
+  if(ROL==='bodega') {
+    return `<div class="pedido-acciones">
+      ${ped.estado==='pendiente'?`<button class="btn btn-warn btn-sm" onclick="cambiarEstado(${ped.id},'camino',null,'${modo}')">🚚 En camino</button>`:''}
+      ${ped.estado==='camino'?`<button class="btn btn-success btn-sm" onclick="cambiarEstado(${ped.id},'llegó',null,'${modo}')">✅ Llegó</button>`:''}
+      ${ped.estado!=='llegó'?`
+        <input id="fe-${ped.id}" placeholder="Fecha estimada" style="width:150px;display:inline-block;padding:6px 10px;font-size:12px;" type="date">
+        <button class="btn btn-sm" style="background:#1a1a3a;color:#8888ff;border:1px solid #2a2a5a;" onclick="guardarFecha(${ped.id},'${modo}')">📅 Guardar fecha</button>
+        <button class="btn btn-wa btn-sm" onclick="enviarWA(${ped.id})">📲 WhatsApp</button>
+      `:''}
+    </div>`;
+  }
+  return '';
+}
+
+async function cambiarEstado(id, estado, fecha, modo) {
+  await fetch(`/api/pedidos/${id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({estado, fecha_estimada: fecha})
+  });
+  cargarPedidos(modo);
+}
+
+async function guardarFecha(id, modo) {
+  const fecha = document.getElementById('fe-'+id).value;
+  if(!fecha){ alert('Selecciona una fecha'); return; }
+  await fetch(`/api/pedidos/${id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({estado:'camino', fecha_estimada: fecha})
+  });
+  cargarPedidos(modo);
+}
+
+async function enviarWA(id) {
+  const res = await fetch(`/api/whatsapp/${id}`);
+  const data = await res.json();
+  if(data.ok) window.open(data.link,'_blank');
+  else alert('No se encontró teléfono del encargado');
+}
+
+// ── Más solicitados ──────────────────────────────────────────────────────────
+async function cargarTop() {
+  const p = document.getElementById('panel-top');
+  p.innerHTML = '<div class="empty">Cargando...</div>';
+  const res = await fetch('/api/mas-solicitados');
+  const lista = await res.json();
+  if(!lista.length){ p.innerHTML='<div class="empty">No hay datos</div>'; return; }
+  p.innerHTML = `<div class="card">
+    <div class="section-title">🔥 Productos más solicitados</div>
+    ${lista.map((r,i)=>`
+      <div class="top-item">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span class="top-num">${i+1}</span>
+          <span style="font-weight:600">${r.producto}</span>
+        </div>
+        <div style="text-align:right">
+          <div style="color:#6c63ff;font-weight:700">${r.tiendas} tiendas</div>
+          <div style="color:#8888aa;font-size:12px">${r.total} uds total</div>
+        </div>
+      </div>`).join('')}
+  </div>`;
+}
+
+// ── Usuarios ─────────────────────────────────────────────────────────────────
+async function cargarUsuarios() {
+  const p = document.getElementById('panel-usuarios');
+  const res = await fetch('/api/usuarios');
+  const lista = await res.json();
+  p.innerHTML = `
+    <div class="alert-ok" id="ok-usr">✅ Usuario creado</div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="section-title">➕ Nuevo usuario</div>
+      <div class="grid2">
+        <div><label>Nombre</label><input id="u-nom" placeholder="Nombre completo"></div>
+        <div><label>Usuario</label><input id="u-usr" placeholder="Para entrar al sistema"></div>
+      </div>
+      <div class="grid2">
+        <div><label>Contraseña</label><input id="u-pwd" type="password" placeholder="Contraseña"></div>
+        <div><label>Teléfono WA</label><input id="u-tel" placeholder="10 dígitos sin +52"></div>
+      </div>
+      <div class="grid2">
+        <div><label>Rol</label>
+          <select id="u-rol">
+            <option value="asesor">Asesor</option>
+            <option value="encargado">Encargado</option>
+            ${ROL==='bodega'?'<option value="bodega">Bodega</option>':''}
+          </select>
+        </div>
+        <div><label>Tienda</label><input id="u-tienda" placeholder="Nombre de la tienda"></div>
+      </div>
+      <div style="margin-top:16px;">
+        <button class="btn btn-primary" onclick="crearUsuario()">Crear usuario</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">👥 Usuarios registrados</div>
+      ${lista.map(u=>`
+        <div class="top-item">
+          <div>
+            <div style="font-weight:600">${u.nombre}</div>
+            <div style="color:#8888aa;font-size:12px">@${u.usuario} · ${u.tienda}</div>
+          </div>
+          <span class="badge ${u.rol==='bodega'?'bodega':u.rol==='encargado'?'modulo':'baja'}">${u.rol}</span>
+        </div>`).join('')}
+    </div>`;
+}
+
+async function crearUsuario() {
+  const nom = document.getElementById('u-nom').value.trim();
+  const usr = document.getElementById('u-usr').value.trim();
+  const pwd = document.getElementById('u-pwd').value.trim();
+  const tel = document.getElementById('u-tel').value.trim();
+  const rol = document.getElementById('u-rol').value;
+  const tienda = document.getElementById('u-tienda').value.trim();
+  if(!nom||!usr||!pwd||!tienda){ alert('Llena todos los campos'); return; }
+  const res = await fetch('/api/usuarios', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({nombre:nom, usuario:usr, password:pwd, rol, tienda, telefono:tel})
+  });
+  const data = await res.json();
+  if(data.ok){
+    const ok = document.getElementById('ok-usr');
+    ok.style.display='block';
+    setTimeout(()=>ok.style.display='none',3000);
+    cargarUsuarios();
+  } else { alert(data.msg||'Error'); }
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+cargarPanel(tabs[0].id);
+</script>
+</body>
+</html>
