@@ -1,5 +1,8 @@
 [phases.setup]
-aptPkgs = ["libpq-dev"]
+aptPkgs = ["libpq-dev", "gcc", "python3-dev"]
+
+[phases.install]
+cmds = ["pip install psycopg2-binary --no-binary psycopg2-binary"]
 
 [start]
 cmd = "gunicorn main:app --bind 0.0.0.0:$PORT"
