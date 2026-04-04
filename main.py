@@ -1,14 +1,25 @@
 import os
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import pg8000
+import pg8000.native
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "clave-secreta-pedidos")
 
 def get_db():
-    return psycopg2.connect(os.environ.get("DATABASE_URL"), cursor_factory=RealDictCursor)
+    url = os.environ.get("DATABASE_URL")
+    # parse url: postgresql://user:pass@host:port/db
+    import urllib.parse
+    r = urllib.parse.urlparse(url)
+    return pg8000.connect(
+        host=r.hostname,
+        port=r.port or 5432,
+        database=r.path[1:],
+        user=r.username,
+        password=r.password,
+        ssl_context=False
+    )
 
 def init_db():
     conn = get_db()
