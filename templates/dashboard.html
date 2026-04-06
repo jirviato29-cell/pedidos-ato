@@ -38,7 +38,6 @@ textarea{resize:vertical;min-height:70px;}
 .btn-wa{background:#1a3a1a;color:#44cc44;border:1px solid #2a5a2a;}
 .btn-sm{padding:6px 12px;font-size:12px;}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
 .empty{text-align:center;color:#8888aa;padding:40px 20px;font-size:14px;}
 .alert-ok{background:#0a2a1a;border:1px solid #2a5a3a;border-radius:8px;color:#44cc88;padding:10px 14px;margin-bottom:12px;display:none;font-size:13px;}
 .section-title{font-size:15px;font-weight:700;color:#aaaacc;margin-bottom:12px;}
@@ -46,8 +45,9 @@ textarea{resize:vertical;min-height:70px;}
 .top-item:last-child{border-bottom:none;}
 .filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
 .filtros select{width:auto;padding:8px 12px;font-size:13px;}
-.filtros input{width:auto;padding:8px 12px;font-size:13px;}
 .pedido-acciones{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.check-label{display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;cursor:pointer;color:#8888aa;font-size:13px;font-weight:400;}
+.check-label input[type=checkbox]{width:auto;margin:0;}
 </style>
 </head>
 <body>
@@ -112,11 +112,10 @@ function cargarPanel(id){
   else if(id==='usuarios') cargarUsuarios();
 }
 
-// ── NUEVO PEDIDO ─────────────────────────────────────────────────────────────
+// ── NUEVO PEDIDO ──────────────────────────────────────────────────────────────
 async function renderNuevo(){
   const p=document.getElementById('panel-nuevo');
   const cats=await fetch('/api/categorias').then(r=>r.json());
-  const esAsesor=ROL==='asesor';
   p.innerHTML=`
     <div class="alert-ok" id="ok-nuevo">✅ Pedido enviado correctamente</div>
     <div class="card">
@@ -129,15 +128,21 @@ async function renderNuevo(){
         <option value="sugerido">💡 Sugerido</option>
       </select>
       <label>Categoría</label>
-      <select id="np-cat" onchange="cargarProductosSel()">
+      <select id="np-cat">
         <option value="">-- Selecciona categoría --</option>
-        ${cats.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('')}
+        ${cats.map(c=>`<option value="${c.id}" data-nombre="${c.nombre}">${c.nombre}</option>`).join('')}
       </select>
-      <label>Producto</label>
-      <select id="np-prod">
-        <option value="">-- Primero selecciona categoría --</option>
-      </select>
-      <label>Modelo / Marca (opcional)</label>
+      <div style="margin-top:10px">
+        <label class="check-label">
+          <input type="checkbox" id="np-nuevo" onchange="toggleNuevo()">
+          No está en catálogo — especificar manualmente
+        </label>
+      </div>
+      <div id="campo-nuevo" style="display:none">
+        <label>Especifica el producto</label>
+        <input id="np-prod-manual" placeholder="Ej: Funda magnética, Cable USB-C 3m...">
+      </div>
+      <label>Modelo / Marca</label>
       <input id="np-modelo" placeholder="Ej: iPhone 15, Samsung A54, Genérico...">
       <label>Cantidad</label>
       <input id="np-cant" placeholder="Ej: 5 piezas, 2 cajas...">
@@ -149,23 +154,33 @@ async function renderNuevo(){
     </div>`;
 }
 
-async function cargarProductosSel(){
-  const catId=document.getElementById('np-cat').value;
-  const sel=document.getElementById('np-prod');
-  if(!catId){sel.innerHTML='<option value="">-- Primero selecciona categoría --</option>';return;}
-  const prods=await fetch(`/api/productos?categoria_id=${catId}`).then(r=>r.json());
-  sel.innerHTML='<option value="">-- Selecciona producto --</option>'+prods.map(p=>`<option value="${p.id}" data-nombre="${p.nombre}">${p.nombre}</option>`).join('');
+function toggleNuevo(){
+  const checked=document.getElementById('np-nuevo').checked;
+  document.getElementById('campo-nuevo').style.display=checked?'block':'none';
+  document.getElementById('np-cat').disabled=checked;
+  if(checked) document.getElementById('np-cat').style.opacity='0.4';
+  else document.getElementById('np-cat').style.opacity='1';
 }
 
 async function enviarPedido(){
-  const prodSel=document.getElementById('np-prod');
-  const prodId=prodSel.value;
-  const prodNombre=prodSel.options[prodSel.selectedIndex]?.dataset.nombre||'';
+  const esNuevo=document.getElementById('np-nuevo')?.checked;
+  const catSel=document.getElementById('np-cat');
+  const catNombre=catSel?.options[catSel.selectedIndex]?.dataset.nombre||'';
+  const catId=catSel?.value;
+  const prodManual=document.getElementById('np-prod-manual')?.value.trim();
   const cant=document.getElementById('np-cant').value.trim();
-  if(!prodId||!cant){alert('Selecciona producto y escribe la cantidad');return;}
+  let prodNombre='';
+  if(esNuevo){
+    if(!prodManual){alert('Escribe el nombre del producto');return;}
+    prodNombre=prodManual;
+  } else {
+    if(!catId){alert('Selecciona una categoría');return;}
+    prodNombre=catNombre;
+  }
+  if(!cant){alert('Escribe la cantidad');return;}
   const res=await fetch('/api/pedidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
     tipo:document.getElementById('np-tipo').value,
-    producto_id:parseInt(prodId),
+    producto_id:null,
     producto_nombre:prodNombre,
     cantidad:cant,
     modelo_marca:document.getElementById('np-modelo').value.trim(),
@@ -176,29 +191,23 @@ async function enviarPedido(){
     document.getElementById('np-cant').value='';
     document.getElementById('np-modelo').value='';
     document.getElementById('np-nota').value='';
-    const ok=document.getElementById('ok-nuevo');
-    ok.style.display='block';
-    setTimeout(()=>ok.style.display='none',3000);
+    if(document.getElementById('np-prod-manual')) document.getElementById('np-prod-manual').value='';
+    mostrarOk('ok-nuevo');
   } else alert(data.msg||'Error');
 }
 
 // ── LISTAR PEDIDOS ────────────────────────────────────────────────────────────
 async function cargarPedidos(modo){
-  const panelId=modo==='mis'||modo==='asesores'?modo:modo==='urgentes'||modo==='historial'?modo:'todos';
+  const panelId=modo;
   const p=document.getElementById('panel-'+panelId);
   p.innerHTML='<div class="empty">Cargando...</div>';
-
   let url='/api/pedidos?';
   if(modo==='urgentes') url+='tipo=urgente&';
   if(modo==='historial') url+='estado=llego&';
-
   const todos=await fetch(url).then(r=>r.json());
   let lista=todos;
-  if(modo==='mis'||modo==='asesores') lista=todos.filter(x=>x.estado!=='llego');
-  if(modo==='todos') lista=todos.filter(x=>x.estado!=='llego');
-
+  if(modo==='mis'||modo==='asesores'||modo==='todos') lista=todos.filter(x=>x.estado!=='llego');
   const tiendas=[...new Set(lista.map(x=>x.tienda))].sort();
-
   p.innerHTML=`
     <div class="filtros">
       ${ROL==='bodega'&&modo==='todos'?`
@@ -215,10 +224,7 @@ async function cargarPedidos(modo){
         </select>
       `:''}
     </div>
-    <div id="lista-${modo}">
-      ${renderPedidosList(lista, modo)}
-    </div>`;
-
+    <div id="lista-${modo}">${renderPedidosList(lista,modo)}</div>`;
   window['_pedidos_'+modo]=lista;
 }
 
@@ -231,7 +237,7 @@ function filtrarLista(modo){
   document.getElementById('lista-'+modo).innerHTML=renderPedidosList(lista,modo);
 }
 
-function renderPedidosList(lista, modo){
+function renderPedidosList(lista,modo){
   if(!lista.length) return '<div class="empty">No hay pedidos aquí</div>';
   return lista.map(ped=>{
     const fecha=new Date(ped.fecha_creacion).toLocaleDateString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
@@ -243,16 +249,16 @@ function renderPedidosList(lista, modo){
       </div>
       <div style="font-size:12px;color:#8888aa">
         🏪 ${ped.tienda} · 👤 ${ped.solicitante||'—'} · 📦 ${ped.cantidad} · 🗓 ${fecha}
-        ${ped.modelo_marca?`<br>📱 Modelo/Marca: <b style="color:#aaaaff">${ped.modelo_marca}</b>`:''}
+        ${ped.modelo_marca?`<br>📱 <b style="color:#aaaaff">${ped.modelo_marca}</b>`:''}
         ${ped.nota?`<br>📝 ${ped.nota}`:''}
         ${ped.fecha_estimada?`<br>🚚 Llega: <b style="color:#ffaa00">${ped.fecha_estimada}</b>`:''}
       </div>
-      ${renderAcciones(ped, modo)}
+      ${renderAcciones(ped,modo)}
     </div>`;
   }).join('');
 }
 
-function renderAcciones(ped, modo){
+function renderAcciones(ped,modo){
   if(ROL==='asesor') return '';
   if(ROL==='encargado'&&modo==='asesores'&&ped.estado==='pendiente'){
     return `<div class="pedido-acciones">
@@ -327,10 +333,7 @@ async function cargarTop(){
 // ── CATÁLOGO ──────────────────────────────────────────────────────────────────
 async function cargarCatalogo(){
   const p=document.getElementById('panel-catalogo');
-  const [cats, prods]=await Promise.all([
-    fetch('/api/categorias').then(r=>r.json()),
-    fetch('/api/productos').then(r=>r.json())
-  ]);
+  const cats=await fetch('/api/categorias').then(r=>r.json());
   p.innerHTML=`
     <div class="alert-ok" id="ok-cat">✅ Guardado</div>
     <div class="grid2" style="margin-bottom:16px">
@@ -339,39 +342,27 @@ async function cargarCatalogo(){
         <label>Nombre</label>
         <input id="c-nom" placeholder="Ej: Micas, Cargadores, Audífonos...">
         <div style="margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="crearCategoria()">Guardar categoría</button>
+          <button class="btn btn-primary btn-sm" onclick="crearCategoria()">Guardar</button>
         </div>
-        <div class="section-title" style="margin-top:16px">📂 Categorías</div>
-        ${cats.map(c=>`
+        <div class="section-title" style="margin-top:20px">📂 Categorías registradas</div>
+        ${cats.length?cats.map(c=>`
           <div class="top-item">
             <span>${c.nombre}</span>
             <button class="btn btn-danger btn-sm" onclick="borrarCategoria(${c.id})">🗑</button>
-          </div>`).join('')||'<div style="color:#8888aa;font-size:13px">Sin categorías</div>'}
+          </div>`).join(''):'<div style="color:#8888aa;font-size:13px;padding:8px 0">Sin categorías aún</div>'}
       </div>
       <div class="card">
-        <div class="section-title">➕ Nuevo producto</div>
-        <label>Categoría</label>
-        <select id="p-cat">
-          <option value="">-- Selecciona --</option>
-          ${cats.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('')}
-        </select>
-        <label>Nombre del producto</label>
-        <input id="p-nom" placeholder="Ej: Mica templada, Cargador 20W...">
-        <div style="margin-top:12px">
-          <button class="btn btn-primary btn-sm" onclick="crearProducto()">Guardar producto</button>
-        </div>
+        <div class="section-title">ℹ️ ¿Cómo funciona?</div>
+        <p style="font-size:13px;color:#8888aa;line-height:1.6">
+          Las categorías son los grupos de productos que manejas:<br><br>
+          📱 Micas<br>
+          🔌 Cargadores<br>
+          🎧 Audífonos<br>
+          📦 Accesorios<br><br>
+          Al hacer un pedido, el asesor selecciona la categoría y escribe el modelo o marca específico.
+          Si el producto no está en ninguna categoría, puede marcarlo manualmente.
+        </p>
       </div>
-    </div>
-    <div class="card">
-      <div class="section-title">📦 Productos registrados</div>
-      ${prods.map(pr=>`
-        <div class="top-item">
-          <div>
-            <div style="font-weight:600">${pr.nombre}</div>
-            <div style="color:#8888aa;font-size:12px">${pr.categoria||'Sin categoría'}</div>
-          </div>
-          <button class="btn btn-danger btn-sm" onclick="borrarProducto(${pr.id})">🗑</button>
-        </div>`).join('')||'<div style="color:#8888aa;font-size:13px">Sin productos</div>'}
     </div>`;
 }
 
@@ -387,22 +378,6 @@ async function crearCategoria(){
 async function borrarCategoria(id){
   if(!confirm('¿Borrar esta categoría?')) return;
   await fetch(`/api/categorias/${id}`,{method:'DELETE'});
-  cargarCatalogo();
-}
-
-async function crearProducto(){
-  const nom=document.getElementById('p-nom').value.trim();
-  const cat=document.getElementById('p-cat').value;
-  if(!nom||!cat){alert('Selecciona categoría y escribe el nombre');return;}
-  const res=await fetch('/api/productos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:nom,categoria_id:parseInt(cat)})});
-  const data=await res.json();
-  if(data.ok){document.getElementById('p-nom').value='';mostrarOk('ok-cat');cargarCatalogo();}
-  else alert(data.msg||'Error');
-}
-
-async function borrarProducto(id){
-  if(!confirm('¿Desactivar este producto?')) return;
-  await fetch(`/api/productos/${id}`,{method:'DELETE'});
   cargarCatalogo();
 }
 
@@ -465,6 +440,7 @@ async function crearUsuario(){
 
 function mostrarOk(id){
   const el=document.getElementById(id);
+  if(!el) return;
   el.style.display='block';
   setTimeout(()=>el.style.display='none',3000);
 }
