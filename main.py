@@ -18,14 +18,6 @@ def get_db():
     )
     return conn
 
-def row_to_dict(cursor, row):
-    cols = [d[0] for d in cursor.description]
-    return dict(zip(cols, row))
-
-def rows_to_dicts(cursor, rows):
-    cols = [d[0] for d in cursor.description]
-    return [dict(zip(cols, row)) for row in rows]
-
 def init_db():
     try:
         conn = get_db()
@@ -42,13 +34,29 @@ def init_db():
             )
         """)
         cur.execute("""
+            CREATE TABLE IF NOT EXISTS categorias (
+                id SERIAL PRIMARY KEY,
+                nombre TEXT UNIQUE NOT NULL
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS productos (
+                id SERIAL PRIMARY KEY,
+                nombre TEXT NOT NULL,
+                categoria_id INTEGER REFERENCES categorias(id),
+                activo BOOLEAN DEFAULT TRUE
+            )
+        """)
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS pedidos (
                 id SERIAL PRIMARY KEY,
-                tipo TEXT NOT NULL,
+                tipo TEXT NOT NULL DEFAULT 'faltante',
                 tienda TEXT NOT NULL,
                 usuario_id INTEGER REFERENCES usuarios(id),
-                producto TEXT NOT NULL,
+                producto_id INTEGER,
+                producto_nombre TEXT NOT NULL,
                 cantidad TEXT NOT NULL,
+                modelo_marca TEXT,
                 urgencia TEXT DEFAULT 'media',
                 nota TEXT,
                 estado TEXT DEFAULT 'pendiente',
@@ -109,34 +117,47 @@ def dashboard():
         return redirect(url_for('index'))
     return render_template('dashboard.html', rol=session['rol'], nombre=session['nombre'], tienda=session['tienda'])
 
+# ── PEDIDOS ───────────────────────────────────────────────────────────────────
+
 @app.route('/api/pedidos', methods=['GET'])
 def get_pedidos():
     if 'usuario_id' not in session:
         return jsonify({'error': 'no autorizado'}), 401
     try:
+        tipo = request.args.get('tipo')
+        estado = request.args.get('estado')
+        tienda_f = request.args.get('tienda')
         conn = get_db()
         cur = conn.cursor()
-        if session['rol'] == 'bodega':
-            cur.execute("""
-                SELECT p.id, p.tipo, p.tienda, p.usuario_id, p.producto, p.cantidad,
-                       p.urgencia, p.nota, p.estado, p.fecha_estimada,
-                       p.fecha_creacion, p.fecha_actualizacion, u.nombre as solicitante
-                FROM pedidos p
-                LEFT JOIN usuarios u ON p.usuario_id = u.id
-                ORDER BY CASE p.urgencia WHEN 'alta' THEN 1 WHEN 'media' THEN 2 ELSE 3 END, p.fecha_creacion DESC
-            """)
-        else:
-            cur.execute("""
-                SELECT p.id, p.tipo, p.tienda, p.usuario_id, p.producto, p.cantidad,
-                       p.urgencia, p.nota, p.estado, p.fecha_estimada,
-                       p.fecha_creacion, p.fecha_actualizacion, u.nombre as solicitante
-                FROM pedidos p
-                LEFT JOIN usuarios u ON p.usuario_id = u.id
-                WHERE p.tienda = %s
-                ORDER BY p.fecha_creacion DESC
-            """, (session['tienda'],))
+        where = []
+        params = []
+        if session['rol'] != 'bodega':
+            where.append("p.tienda = %s")
+            params.append(session['tienda'])
+        elif tienda_f:
+            where.append("p.tienda = %s")
+            params.append(tienda_f)
+        if tipo:
+            where.append("p.tipo = %s")
+            params.append(tipo)
+        if estado:
+            where.append("p.estado = %s")
+            params.append(estado)
+        where_sql = "WHERE " + " AND ".join(where) if where else ""
+        cur.execute(f"""
+            SELECT p.id, p.tipo, p.tienda, p.usuario_id, p.producto_nombre, p.cantidad,
+                   p.urgencia, p.nota, p.estado, p.fecha_estimada,
+                   p.fecha_creacion, p.fecha_actualizacion, u.nombre as solicitante,
+                   p.modelo_marca, p.producto_id
+            FROM pedidos p
+            LEFT JOIN usuarios u ON p.usuario_id = u.id
+            {where_sql}
+            ORDER BY CASE p.tipo WHEN 'urgente' THEN 1 WHEN 'faltante' THEN 2 WHEN 'especial' THEN 3 ELSE 4 END,
+                     p.fecha_creacion DESC
+        """, params)
         rows = cur.fetchall()
-        cols = ['id','tipo','tienda','usuario_id','producto','cantidad','urgencia','nota','estado','fecha_estimada','fecha_creacion','fecha_actualizacion','solicitante']
+        cols = ['id','tipo','tienda','usuario_id','producto_nombre','cantidad','urgencia','nota','estado',
+                'fecha_estimada','fecha_creacion','fecha_actualizacion','solicitante','modelo_marca','producto_id']
         pedidos = []
         for row in rows:
             d = dict(zip(cols, row))
@@ -160,14 +181,16 @@ def crear_pedido():
         conn = get_db()
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO pedidos (tipo, tienda, usuario_id, producto, cantidad, urgencia, nota)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO pedidos (tipo, tienda, usuario_id, producto_id, producto_nombre, cantidad, modelo_marca, urgencia, nota)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
-            data.get('tipo', 'modulo'),
+            data.get('tipo', 'faltante'),
             session['tienda'],
             session['usuario_id'],
-            data['producto'],
+            data.get('producto_id'),
+            data['producto_nombre'],
             data['cantidad'],
+            data.get('modelo_marca', ''),
             data.get('urgencia', 'media'),
             data.get('nota', '')
         ))
@@ -197,6 +220,21 @@ def actualizar_pedido(pid):
     except Exception as e:
         return jsonify({'ok': False, 'msg': str(e)})
 
+@app.route('/api/pedidos/<int:pid>', methods=['DELETE'])
+def borrar_pedido(pid):
+    if 'usuario_id' not in session:
+        return jsonify({'error': 'no autorizado'}), 401
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM pedidos WHERE id = %s", (pid,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': str(e)})
+
 @app.route('/api/mas-solicitados')
 def mas_solicitados():
     if 'usuario_id' not in session:
@@ -205,17 +243,128 @@ def mas_solicitados():
         conn = get_db()
         cur = conn.cursor()
         cur.execute("""
-            SELECT producto, COUNT(DISTINCT tienda) as tiendas, COUNT(*) as total
+            SELECT producto_nombre, tipo, COUNT(DISTINCT tienda) as tiendas, COUNT(*) as total
             FROM pedidos WHERE estado = 'pendiente'
-            GROUP BY producto ORDER BY tiendas DESC, total DESC LIMIT 20
+            GROUP BY producto_nombre, tipo ORDER BY tiendas DESC, total DESC LIMIT 20
         """)
         rows = cur.fetchall()
-        result = [{'producto': r[0], 'tiendas': r[1], 'total': r[2]} for r in rows]
+        result = [{'producto': r[0], 'tipo': r[1], 'tiendas': r[2], 'total': r[3]} for r in rows]
         cur.close()
         conn.close()
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# ── CATEGORIAS ────────────────────────────────────────────────────────────────
+
+@app.route('/api/categorias', methods=['GET'])
+def get_categorias():
+    if 'usuario_id' not in session:
+        return jsonify({'error': 'no autorizado'}), 401
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id, nombre FROM categorias ORDER BY nombre")
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return jsonify([{'id': r[0], 'nombre': r[1]} for r in rows])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/categorias', methods=['POST'])
+def crear_categoria():
+    if session.get('rol') != 'bodega':
+        return jsonify({'error': 'no autorizado'}), 401
+    data = request.json
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO categorias (nombre) VALUES (%s)", (data['nombre'],))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': 'Categoría ya existe'})
+
+@app.route('/api/categorias/<int:cid>', methods=['DELETE'])
+def borrar_categoria(cid):
+    if session.get('rol') != 'bodega':
+        return jsonify({'error': 'no autorizado'}), 401
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM categorias WHERE id = %s", (cid,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': str(e)})
+
+# ── PRODUCTOS ─────────────────────────────────────────────────────────────────
+
+@app.route('/api/productos', methods=['GET'])
+def get_productos():
+    if 'usuario_id' not in session:
+        return jsonify({'error': 'no autorizado'}), 401
+    try:
+        cat_id = request.args.get('categoria_id')
+        conn = get_db()
+        cur = conn.cursor()
+        if cat_id:
+            cur.execute("""
+                SELECT p.id, p.nombre, p.categoria_id, c.nombre as categoria
+                FROM productos p LEFT JOIN categorias c ON p.categoria_id = c.id
+                WHERE p.activo = TRUE AND p.categoria_id = %s ORDER BY p.nombre
+            """, (cat_id,))
+        else:
+            cur.execute("""
+                SELECT p.id, p.nombre, p.categoria_id, c.nombre as categoria
+                FROM productos p LEFT JOIN categorias c ON p.categoria_id = c.id
+                WHERE p.activo = TRUE ORDER BY c.nombre, p.nombre
+            """)
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return jsonify([{'id': r[0], 'nombre': r[1], 'categoria_id': r[2], 'categoria': r[3]} for r in rows])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/productos', methods=['POST'])
+def crear_producto():
+    if session.get('rol') != 'bodega':
+        return jsonify({'error': 'no autorizado'}), 401
+    data = request.json
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO productos (nombre, categoria_id) VALUES (%s, %s)",
+            (data['nombre'], data.get('categoria_id')))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': str(e)})
+
+@app.route('/api/productos/<int:pid>', methods=['DELETE'])
+def borrar_producto(pid):
+    if session.get('rol') != 'bodega':
+        return jsonify({'error': 'no autorizado'}), 401
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("UPDATE productos SET activo = FALSE WHERE id = %s", (pid,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': str(e)})
+
+# ── USUARIOS ──────────────────────────────────────────────────────────────────
 
 @app.route('/api/usuarios', methods=['GET'])
 def get_usuarios():
@@ -230,10 +379,9 @@ def get_usuarios():
             cur.execute("SELECT id, nombre, usuario, rol, tienda, telefono FROM usuarios WHERE tienda = %s ORDER BY nombre", (session['tienda'],))
         rows = cur.fetchall()
         cols = ['id','nombre','usuario','rol','tienda','telefono']
-        usuarios = [dict(zip(cols, r)) for r in rows]
         cur.close()
         conn.close()
-        return jsonify(usuarios)
+        return jsonify([dict(zip(cols, r)) for r in rows])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -261,8 +409,9 @@ def crear_usuario():
         conn.close()
         return jsonify({'ok': True})
     except Exception as e:
-        conn.rollback()
         return jsonify({'ok': False, 'msg': 'Usuario ya existe'})
+
+# ── WHATSAPP ──────────────────────────────────────────────────────────────────
 
 @app.route('/api/whatsapp/<int:pid>')
 def whatsapp_link(pid):
@@ -272,7 +421,7 @@ def whatsapp_link(pid):
         conn = get_db()
         cur = conn.cursor()
         cur.execute("""
-            SELECT p.producto, p.tienda, u.telefono, u.nombre
+            SELECT p.producto_nombre, p.tienda, u.telefono, u.nombre
             FROM pedidos p
             LEFT JOIN usuarios u ON u.tienda = p.tienda AND u.rol = 'encargado'
             WHERE p.id = %s LIMIT 1
