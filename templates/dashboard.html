@@ -112,15 +112,17 @@ function cargarPanel(id){
   else if(id==='usuarios') cargarUsuarios();
 }
 
-// ── NUEVO PEDIDO ──────────────────────────────────────────────────────────────
+// ── NUEVO PEDIDO CON CARRITO ──────────────────────────────────────────────────
+let carrito=[];
+
 async function renderNuevo(){
   const p=document.getElementById('panel-nuevo');
   const cats=await fetch('/api/categorias').then(r=>r.json());
   p.innerHTML=`
-    <div class="alert-ok" id="ok-nuevo">✅ Pedido enviado correctamente</div>
+    <div class="alert-ok" id="ok-nuevo">✅ Pedidos enviados correctamente</div>
     <div class="card">
-      <div class="section-title">Nuevo pedido</div>
-      <label>Tipo de pedido</label>
+      <div class="section-title">Agregar al pedido</div>
+      <label>Tipo</label>
       <select id="np-tipo">
         <option value="faltante">📋 Faltante / Reposición</option>
         <option value="especial">⭐ Especial</option>
@@ -149,20 +151,21 @@ async function renderNuevo(){
       <label>Nota (opcional)</label>
       <textarea id="np-nota" placeholder="Cualquier detalle adicional..."></textarea>
       <div style="margin-top:16px">
-        <button class="btn btn-primary" onclick="enviarPedido()">Enviar pedido</button>
+        <button class="btn btn-primary" onclick="agregarAlCarrito()">➕ Agregar al pedido</button>
       </div>
-    </div>`;
+    </div>
+    <div id="carrito-container"></div>`;
+  renderCarrito();
 }
 
 function toggleNuevo(){
   const checked=document.getElementById('np-nuevo').checked;
   document.getElementById('campo-nuevo').style.display=checked?'block':'none';
   document.getElementById('np-cat').disabled=checked;
-  if(checked) document.getElementById('np-cat').style.opacity='0.4';
-  else document.getElementById('np-cat').style.opacity='1';
+  document.getElementById('np-cat').style.opacity=checked?'0.4':'1';
 }
 
-async function enviarPedido(){
+function agregarAlCarrito(){
   const esNuevo=document.getElementById('np-nuevo')?.checked;
   const catSel=document.getElementById('np-cat');
   const catNombre=catSel?.options[catSel.selectedIndex]?.dataset.nombre||'';
@@ -178,22 +181,84 @@ async function enviarPedido(){
     prodNombre=catNombre;
   }
   if(!cant){alert('Escribe la cantidad');return;}
-  const res=await fetch('/api/pedidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+  carrito.push({
     tipo:document.getElementById('np-tipo').value,
-    producto_id:null,
     producto_nombre:prodNombre,
     cantidad:cant,
     modelo_marca:document.getElementById('np-modelo').value.trim(),
     nota:document.getElementById('np-nota').value.trim()
-  })});
-  const data=await res.json();
-  if(data.ok){
-    document.getElementById('np-cant').value='';
-    document.getElementById('np-modelo').value='';
-    document.getElementById('np-nota').value='';
-    if(document.getElementById('np-prod-manual')) document.getElementById('np-prod-manual').value='';
+  });
+  document.getElementById('np-cat').value='';
+  document.getElementById('np-cant').value='';
+  document.getElementById('np-modelo').value='';
+  document.getElementById('np-nota').value='';
+  if(document.getElementById('np-prod-manual')) document.getElementById('np-prod-manual').value='';
+  renderCarrito();
+}
+
+function renderCarrito(){
+  const c=document.getElementById('carrito-container');
+  if(!c) return;
+  if(!carrito.length){
+    c.innerHTML='<div style="color:#8888aa;font-size:13px;text-align:center;padding:16px">Aún no has agregado productos al pedido</div>';
+    return;
+  }
+  c.innerHTML=`
+    <div class="card">
+      <div class="section-title">🛒 Pedido actual — ${carrito.length} producto${carrito.length>1?'s':''}</div>
+      ${carrito.map((item,i)=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #2a2a4a">
+          <div>
+            <div style="font-weight:600">${item.producto_nombre}</div>
+            <div style="font-size:12px;color:#8888aa">
+              <span class="badge ${item.tipo}" style="font-size:10px">${item.tipo}</span>
+              · ${item.cantidad}
+              ${item.modelo_marca?` · ${item.modelo_marca}`:''}
+              ${item.nota?` · 📝 ${item.nota}`:''}
+            </div>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="quitarDelCarrito(${i})">🗑</button>
+        </div>`).join('')}
+      <div style="margin-top:16px;display:flex;gap:10px">
+        <button class="btn btn-primary" onclick="enviarCarrito()">📤 Enviar ${carrito.length} pedido${carrito.length>1?'s':''}</button>
+        <button class="btn btn-danger btn-sm" onclick="limpiarCarrito()" style="padding:11px 16px">🗑 Limpiar todo</button>
+      </div>
+    </div>`;
+}
+
+function quitarDelCarrito(i){
+  carrito.splice(i,1);
+  renderCarrito();
+}
+
+function limpiarCarrito(){
+  if(!confirm('¿Limpiar todos los productos del pedido?')) return;
+  carrito=[];
+  renderCarrito();
+}
+
+async function enviarCarrito(){
+  if(!carrito.length){alert('No hay productos en el pedido');return;}
+  let errores=0;
+  for(const item of carrito){
+    const res=await fetch('/api/pedidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      tipo:item.tipo,
+      producto_id:null,
+      producto_nombre:item.producto_nombre,
+      cantidad:item.cantidad,
+      modelo_marca:item.modelo_marca,
+      nota:item.nota
+    })});
+    const data=await res.json();
+    if(!data.ok) errores++;
+  }
+  if(errores===0){
+    carrito=[];
+    renderCarrito();
     mostrarOk('ok-nuevo');
-  } else alert(data.msg||'Error');
+  } else {
+    alert(`Se enviaron ${carrito.length-errores} pedidos. ${errores} fallaron.`);
+  }
 }
 
 // ── LISTAR PEDIDOS ────────────────────────────────────────────────────────────
