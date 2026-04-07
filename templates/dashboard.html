@@ -262,9 +262,15 @@ async function enviarCarrito(){
 }
 
 // ── LISTAR PEDIDOS ────────────────────────────────────────────────────────────
+const TIPO_COLORS={
+  urgente:{bg:'#3a1a1a',border:'#ff4444',text:'#ff6666',icon:'🚨'},
+  faltante:{bg:'#1a1a3a',border:'#4444ff',text:'#8888ff',icon:'📋'},
+  especial:{bg:'#2a1a3a',border:'#aa44ff',text:'#cc88ff',icon:'⭐'},
+  sugerido:{bg:'#0a2a1a',border:'#44aa44',text:'#44cc88',icon:'💡'}
+};
+
 async function cargarPedidos(modo){
-  const panelId=modo;
-  const p=document.getElementById('panel-'+panelId);
+  const p=document.getElementById('panel-'+modo);
   p.innerHTML='<div class="empty">Cargando...</div>';
   let url='/api/pedidos?';
   if(modo==='urgentes') url+='tipo=urgente&';
@@ -274,22 +280,21 @@ async function cargarPedidos(modo){
   if(modo==='mis'||modo==='asesores'||modo==='todos') lista=todos.filter(x=>x.estado!=='llego');
   const tiendas=[...new Set(lista.map(x=>x.tienda))].sort();
   p.innerHTML=`
-    <div class="filtros">
-      ${ROL==='bodega'&&modo==='todos'?`
+    <div class="filtros" style="margin-bottom:12px">
+      ${ROL==='bodega'&&(modo==='todos'||modo==='urgentes')?`
         <select id="f-tienda-${modo}" onchange="filtrarLista('${modo}')">
           <option value="">Todas las tiendas</option>
           ${tiendas.map(t=>`<option value="${t}">${t}</option>`).join('')}
-        </select>
-        <select id="f-tipo-${modo}" onchange="filtrarLista('${modo}')">
-          <option value="">Todos los tipos</option>
-          <option value="urgente">🚨 Urgente</option>
-          <option value="faltante">📋 Faltante</option>
-          <option value="especial">⭐ Especial</option>
-          <option value="sugerido">💡 Sugerido</option>
-        </select>
-      `:''}
+        </select>`:''}
+      <select id="f-tipo-${modo}" onchange="filtrarLista('${modo}')">
+        <option value="">Todos los tipos</option>
+        <option value="urgente">🚨 Urgente</option>
+        <option value="faltante">📋 Faltante</option>
+        <option value="especial">⭐ Especial</option>
+        <option value="sugerido">💡 Sugerido</option>
+      </select>
     </div>
-    <div id="lista-${modo}">${renderPedidosList(lista,modo)}</div>`;
+    <div id="lista-${modo}">${renderPostits(lista,modo)}</div>`;
   window['_pedidos_'+modo]=lista;
 }
 
@@ -299,27 +304,54 @@ function filtrarLista(modo){
   let lista=window['_pedidos_'+modo]||[];
   if(tiendaF) lista=lista.filter(x=>x.tienda===tiendaF);
   if(tipoF) lista=lista.filter(x=>x.tipo===tipoF);
-  document.getElementById('lista-'+modo).innerHTML=renderPedidosList(lista,modo);
+  document.getElementById('lista-'+modo).innerHTML=renderPostits(lista,modo);
 }
 
-function renderPedidosList(lista,modo){
+function getFechaLabel(fechaStr){
+  const hoy=new Date();
+  const ayer=new Date(); ayer.setDate(ayer.getDate()-1);
+  const d=new Date(fechaStr);
+  const mismaFecha=(a,b)=>a.getDate()===b.getDate()&&a.getMonth()===b.getMonth()&&a.getFullYear()===b.getFullYear();
+  if(mismaFecha(d,hoy)) return 'Hoy';
+  if(mismaFecha(d,ayer)) return 'Ayer';
+  return d.toLocaleDateString('es-MX',{weekday:'long',day:'2-digit',month:'long'});
+}
+
+function renderPostits(lista,modo){
   if(!lista.length) return '<div class="empty">No hay pedidos aquí</div>';
-  return lista.map(ped=>{
-    const fecha=new Date(ped.fecha_creacion).toLocaleDateString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-    return `<div class="card">
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-        <span style="font-size:16px;font-weight:700">${ped.producto_nombre}</span>
-        <span class="badge ${ped.tipo}">${ped.tipo}</span>
-        <span class="badge ${ped.estado}">${ped.estado}</span>
-      </div>
-      <div style="font-size:12px;color:#8888aa">
-        🏪 ${ped.tienda} · 👤 ${ped.solicitante||'—'} · 📦 ${ped.cantidad} · 🗓 ${fecha}
-        ${ped.modelo_marca?`<br>📱 <b style="color:#aaaaff">${ped.modelo_marca}</b>`:''}
-        ${ped.nota?`<br>📝 ${ped.nota}`:''}
-        ${ped.fecha_estimada?`<br>🚚 Llega: <b style="color:#ffaa00">${ped.fecha_estimada}</b>`:''}
-      </div>
-      ${renderAcciones(ped,modo)}
-    </div>`;
+  const porFecha={};
+  lista.forEach(ped=>{
+    const key=ped.fecha_creacion?ped.fecha_creacion.split('T')[0]:'sin-fecha';
+    if(!porFecha[key]) porFecha[key]=[];
+    porFecha[key].push(ped);
+  });
+  const fechasOrdenadas=Object.keys(porFecha).sort().reverse();
+  return fechasOrdenadas.map(fecha=>{
+    const label=getFechaLabel(fecha+'T00:00:00');
+    const peds=porFecha[fecha];
+    return `
+      <div style="margin-bottom:24px">
+        <div style="font-size:13px;font-weight:700;color:#aaaacc;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+          <span style="background:#2a2a4a;padding:4px 12px;border-radius:20px">📅 ${label}</span>
+          <span style="color:#555566;font-size:12px">${peds.length} pedido${peds.length>1?'s':''}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">
+          ${peds.map(ped=>{
+            const c=TIPO_COLORS[ped.tipo]||TIPO_COLORS.faltante;
+            const hora=new Date(ped.fecha_creacion).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+            return `<div style="background:${c.bg};border:1.5px solid ${c.border};border-radius:12px;padding:14px;position:relative">
+              <div style="font-size:11px;color:${c.text};font-weight:700;margin-bottom:6px">${c.icon} ${ped.tipo.toUpperCase()}</div>
+              <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:4px">${ped.producto_nombre}</div>
+              ${ped.modelo_marca?`<div style="font-size:12px;color:#aaaaff;margin-bottom:4px">📱 ${ped.modelo_marca}</div>`:''}
+              <div style="font-size:12px;color:#888899">📦 ${ped.cantidad}</div>
+              ${ped.nota?`<div style="font-size:11px;color:#888899;margin-top:4px">📝 ${ped.nota}</div>`:''}
+              <div style="font-size:11px;color:#555566;margin-top:8px">👤 ${ped.solicitante||'—'} · ${hora}</div>
+              ${ped.fecha_estimada?`<div style="font-size:11px;color:#ffaa00;margin-top:4px">🚚 Llega: ${ped.fecha_estimada}</div>`:''}
+              <div style="margin-top:8px">${renderAcciones(ped,modo)}</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
   }).join('');
 }
 
