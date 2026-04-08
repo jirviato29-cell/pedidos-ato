@@ -10,6 +10,7 @@ app.secret_key = os.environ.get("SECRET_KEY")
 
 def get_db():
     database_url = os.environ.get("DATABASE_URL")
+    print(f"DATABASE_URL presente: {bool(database_url)}")
     if database_url:
         u = urllib.parse.urlparse(database_url)
         conn = pg8000.dbapi.connect(
