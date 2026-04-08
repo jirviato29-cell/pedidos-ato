@@ -6,50 +6,105 @@
 <title>Pedidos ATO</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:#0f0f1a;color:#fff;font-family:system-ui,sans-serif;min-height:100vh;}
-.topbar{background:#1a1a2e;border-bottom:1px solid #2a2a4a;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;}
-.topbar h1{font-size:18px;font-weight:700;}
-.logout{color:#ff6666;font-size:13px;text-decoration:none;margin-left:16px;}
-.tabs{display:flex;gap:4px;padding:16px 16px 0;overflow-x:auto;border-bottom:1px solid #2a2a4a;}
-.tab{padding:10px 16px;border-radius:8px 8px 0 0;font-size:13px;font-weight:600;cursor:pointer;color:#8888aa;white-space:nowrap;border:none;background:none;transition:all .2s;}
-.tab.active{background:#1a1a2e;color:#6c63ff;border:1px solid #2a2a4a;border-bottom:1px solid #1a1a2e;}
-.panel{display:none;padding:20px 16px;}
+body{background:#09090f;color:#e2e2f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;min-height:100vh;font-size:14px;line-height:1.5;}
+
+/* ── TOPBAR ── */
+.topbar{background:#111120;border-bottom:1px solid #1f1f3a;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.topbar h1{font-size:17px;font-weight:800;letter-spacing:-.3px;}
+.logout{color:#ff6b6b;font-size:13px;text-decoration:none;margin-left:14px;opacity:.8;transition:opacity .2s;}
+.logout:hover{opacity:1;}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:2px;padding:14px 16px 0;overflow-x:auto;border-bottom:1px solid #1f1f3a;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{padding:9px 15px;border-radius:8px 8px 0 0;font-size:13px;font-weight:600;cursor:pointer;color:#6666aa;white-space:nowrap;border:none;background:none;transition:all .15s;}
+.tab:hover:not(.active){color:#aaaacc;background:#ffffff08;}
+.tab.active{background:#111120;color:#7c73ff;border:1px solid #1f1f3a;border-bottom:1px solid #111120;}
+
+/* ── PANELS ── */
+.panel{display:none;padding:20px 16px;max-width:1200px;margin:0 auto;}
 .panel.active{display:block;}
-.card{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:12px;padding:16px;margin-bottom:12px;}
-.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
-.badge.urgente{background:#3a1a1a;color:#ff6666;}
-.badge.faltante{background:#1a1a3a;color:#8888ff;}
-.badge.especial{background:#2a1a3a;color:#cc88ff;}
-.badge.sugerido{background:#0a2a1a;color:#44cc88;}
-.badge.pendiente{background:#1a1a3a;color:#8888ff;}
-.badge.camino{background:#3a2a00;color:#ffaa00;}
-.badge.llego{background:#0a2a1a;color:#44cc88;}
-.badge.bodega{background:#1a2a3a;color:#44aaff;}
-.badge.no-surtido{background:#2a1a1a;color:#ff4444;}
-label{display:block;color:#aaaacc;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;margin-top:14px;}
-input,select,textarea{width:100%;background:#0f0f1a;border:1px solid #2a2a4a;border-radius:8px;padding:11px 13px;color:#fff;font-size:14px;outline:none;transition:border .2s;}
-input:focus,select:focus,textarea:focus{border-color:#6c63ff;}
-select option{background:#1a1a2e;}
+
+/* ── CARDS ── */
+.card{background:#111120;border:1px solid #1e1e38;border-radius:14px;padding:18px;margin-bottom:14px;}
+
+/* ── BADGES TIPO (grandes, con borde) ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:.2px;white-space:nowrap;}
+.badge.urgente{background:#3a1212;color:#ff7070;border:1px solid #5a2020;}
+.badge.faltante{background:#12123a;color:#8a8aff;border:1px solid #20206a;}
+.badge.especial{background:#280f40;color:#cc88ff;border:1px solid #441a6a;}
+.badge.sugerido{background:#0c2a18;color:#4ddd88;border:1px solid #1a4a2a;}
+.badge.pendiente{background:#12123a;color:#8a8aff;border:1px solid #20206a;}
+.badge.camino{background:#2e2000;color:#ffbb33;border:1px solid #4a3600;}
+.badge.llego{background:#0c2a18;color:#4ddd88;border:1px solid #1a4a2a;}
+.badge.bodega{background:#0c1e38;color:#55aaff;border:1px solid #1a3a6a;}
+.badge.no-surtido{background:#3a1212;color:#ff5555;border:1px solid #5a2020;}
+
+/* ── FORMS ── */
+label{display:block;color:#8888bb;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;margin-top:16px;}
+input,select,textarea{width:100%;background:#09090f;border:1px solid #1e1e38;border-radius:8px;padding:11px 13px;color:#e2e2f0;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s;}
+input:focus,select:focus,textarea:focus{border-color:#6c63ff;box-shadow:0 0 0 3px #6c63ff20;}
+select option{background:#111120;}
 textarea{resize:vertical;min-height:70px;}
-.btn{display:inline-block;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .2s;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
 .btn-primary{background:#6c63ff;color:#fff;}
-.btn-primary:hover{background:#574fd6;}
-.btn-success{background:#1a4a2a;color:#44cc88;border:1px solid #2a6a3a;}
-.btn-warn{background:#3a2a00;color:#ffaa00;border:1px solid #5a4a00;}
-.btn-danger{background:#3a1a1a;color:#ff6666;border:1px solid #5a2a2a;}
-.btn-wa{background:#1a3a1a;color:#44cc44;border:1px solid #2a5a2a;}
-.btn-sm{padding:6px 12px;font-size:12px;}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.empty{text-align:center;color:#8888aa;padding:40px 20px;font-size:14px;}
-.alert-ok{background:#0a2a1a;border:1px solid #2a5a3a;border-radius:8px;color:#44cc88;padding:10px 14px;margin-bottom:12px;display:none;font-size:13px;}
-.section-title{font-size:15px;font-weight:700;color:#aaaacc;margin-bottom:12px;}
-.top-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #2a2a4a;}
+.btn-primary:hover{background:#574fd6;transform:translateY(-1px);}
+.btn-success{background:#0c2a18;color:#4ddd88;border:1px solid #1a4a2a;}
+.btn-success:hover{background:#152f1e;}
+.btn-warn{background:#2a1c00;color:#ffbb33;border:1px solid #443000;}
+.btn-warn:hover{background:#352400;}
+.btn-danger{background:#2a1010;color:#ff6b6b;border:1px solid #441818;}
+.btn-danger:hover{background:#351515;}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:6px;}
+
+/* ── DROPDOWN ── */
+.dropdown{position:relative;display:inline-block;}
+.dropdown-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:#181830;border:1px solid #252550;border-radius:10px;min-width:170px;z-index:200;box-shadow:0 10px 32px #00000066;overflow:hidden;}
+.dropdown-menu.open{display:block;}
+.dropdown-item{display:flex;align-items:center;gap:8px;width:100%;padding:11px 15px;font-size:13px;font-weight:500;color:#ccccee;background:none;border:none;cursor:pointer;text-align:left;transition:background .1s;white-space:nowrap;}
+.dropdown-item:hover{background:#ffffff0d;}
+.dropdown-item.success{color:#4ddd88;}
+.dropdown-item.warn{color:#ffbb33;}
+.dropdown-item.danger{color:#ff6b6b;}
+
+/* ── TABLES ── */
+.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid #1a1a32;}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;}
+.tbl thead tr{background:#0d0d1e;}
+.tbl th{padding:11px 14px;text-align:left;color:#6666aa;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #1a1a32;white-space:nowrap;}
+.tbl th:last-child{text-align:center;}
+.tbl tbody tr{border-bottom:1px solid #141428;transition:background .1s;}
+.tbl tbody tr:last-child{border-bottom:none;}
+.tbl tbody tr:nth-child(odd){background:#09090f;}
+.tbl tbody tr:nth-child(even){background:#0d0d1e;}
+.tbl tbody tr:hover{background:#13132a;}
+.tbl td{padding:13px 14px;vertical-align:middle;}
+
+/* ── MISC ── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.empty{text-align:center;color:#555588;padding:48px 20px;font-size:14px;}
+.alert-ok{background:#0c2a18;border:1px solid #1a4a2a;border-radius:8px;color:#4ddd88;padding:10px 14px;margin-bottom:14px;display:none;font-size:13px;font-weight:600;}
+.section-title{font-size:14px;font-weight:700;color:#8888bb;margin-bottom:14px;letter-spacing:.2px;}
+.top-item{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #1a1a32;}
 .top-item:last-child{border-bottom:none;}
 .filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
 .filtros select{width:auto;padding:8px 12px;font-size:13px;}
-.pedido-acciones{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
 .check-label{display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;cursor:pointer;color:#8888aa;font-size:13px;font-weight:400;}
 .check-label input[type=checkbox]{width:auto;margin:0;}
+
+/* ── MOBILE ── */
+@media(max-width:640px){
+  .panel{padding:14px 10px;}
+  .topbar{padding:12px 14px;}
+  .topbar h1{font-size:15px;}
+  .grid2{grid-template-columns:1fr;}
+  .col-hide{display:none;}
+  .card{padding:14px;}
+  .btn{padding:9px 14px;font-size:13px;}
+  .tab{padding:8px 12px;font-size:12px;}
+}
 </style>
 </head>
 <body>
@@ -375,41 +430,42 @@ function filtrarLista(modo){
 
 function renderTablaAgrupada(lista,modo){
   if(!lista.length) return '<div class="empty">No hay pedidos aquí</div>';
-  return `<div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:13px">
+  return `<div class="tbl-wrap">
+    <table class="tbl">
       <thead>
-        <tr style="background:#1a1a2e;color:#8888aa;font-size:11px;text-transform:uppercase;letter-spacing:1px">
-          <th style="padding:10px 12px;text-align:left;border-bottom:1px solid #2a2a4a;white-space:nowrap">Tipo</th>
-          <th style="padding:10px 12px;text-align:left;border-bottom:1px solid #2a2a4a">Producto</th>
-          <th style="padding:10px 12px;text-align:left;border-bottom:1px solid #2a2a4a">Modelo / Marca</th>
-          <th style="padding:10px 12px;text-align:center;border-bottom:1px solid #2a2a4a;white-space:nowrap">Total</th>
-          <th style="padding:10px 12px;text-align:left;border-bottom:1px solid #2a2a4a">Tiendas que lo piden</th>
-          <th style="padding:10px 12px;text-align:center;border-bottom:1px solid #2a2a4a">Acciones</th>
+        <tr>
+          <th>Tipo</th>
+          <th>Producto</th>
+          <th class="col-hide">Modelo / Marca</th>
+          <th style="text-align:center">Pedidos</th>
+          <th class="col-hide">Tiendas</th>
+          <th style="text-align:center">Acción</th>
         </tr>
       </thead>
       <tbody>
-        ${lista.map((r,i)=>{
-          const color=TIPO_COLOR[r.tipo]||'#8888ff';
+        ${lista.map(r=>{
           const icon=TIPO_ICON[r.tipo]||'📋';
-          const bg=i%2===0?'#0f0f1a':'#141420';
           const tiendas=Array.isArray(r.tiendas)?r.tiendas:(r.tiendas||'').split(',').map(t=>t.trim()).filter(Boolean);
           const prod=r.producto_nombre.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
           const mod=(r.modelo_marca||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-          return `<tr style="background:${bg};border-bottom:1px solid #1a1a2a">
-            <td style="padding:10px 12px;white-space:nowrap"><span style="color:${color};font-weight:700;font-size:12px">${icon} ${r.tipo}</span></td>
-            <td style="padding:10px 12px;font-weight:600;color:#fff">${r.producto_nombre}</td>
-            <td style="padding:10px 12px;color:#aaaaff">${r.modelo_marca||'—'}</td>
-            <td style="padding:10px 12px;text-align:center;color:#fff;font-weight:600">${r.cantidad_total||r.num_pedidos} pzas</td>
-            <td style="padding:10px 12px">
+          return `<tr>
+            <td><span class="badge ${r.tipo}">${icon} ${r.tipo}</span></td>
+            <td style="font-weight:600;color:#e2e2f0;max-width:200px">${r.producto_nombre}</td>
+            <td class="col-hide" style="color:#9999cc">${r.modelo_marca||'—'}</td>
+            <td style="text-align:center;font-weight:700;color:#e2e2f0">${r.cantidad_total||r.num_pedidos}</td>
+            <td class="col-hide">
               <div style="display:flex;flex-wrap:wrap;gap:4px">
-                ${tiendas.map(t=>`<span style="background:#2a2a4a;color:#aaaacc;padding:2px 8px;border-radius:20px;font-size:11px">${t}</span>`).join('')}
+                ${tiendas.map(t=>`<span style="background:#1a1a35;color:#9999cc;padding:3px 9px;border-radius:20px;font-size:11px;border:1px solid #252550">${t}</span>`).join('')}
               </div>
             </td>
-            <td style="padding:10px 12px">
-              <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
-                <button class="btn btn-success btn-sm" onclick="accionMasiva('${prod}','${mod}','${r.tipo}','llego','${modo}')">✅ Surtido</button>
-                <button class="btn btn-warn btn-sm" onclick="accionMasiva('${prod}','${mod}','${r.tipo}','bodega','${modo}')">📦 Hay en bodega</button>
-                <button class="btn btn-danger btn-sm" onclick="accionMasiva('${prod}','${mod}','${r.tipo}','no-surtido','${modo}')">❌ No surtir</button>
+            <td style="text-align:center">
+              <div class="dropdown">
+                <button class="btn btn-sm" style="background:#1a1a35;color:#aaaacc;border:1px solid #252550" onclick="toggleDropdown(this)">⋯ Acción</button>
+                <div class="dropdown-menu">
+                  <button class="dropdown-item success" onclick="accionMasiva('${prod}','${mod}','${r.tipo}','llego','${modo}')">✅ Surtido</button>
+                  <button class="dropdown-item warn" onclick="accionMasiva('${prod}','${mod}','${r.tipo}','bodega','${modo}')">📦 Hay en bodega</button>
+                  <button class="dropdown-item danger" onclick="accionMasiva('${prod}','${mod}','${r.tipo}','no-surtido','${modo}')">❌ No surtir</button>
+                </div>
               </div>
             </td>
           </tr>`;
@@ -421,32 +477,30 @@ function renderTablaAgrupada(lista,modo){
 
 function renderTablaSimple(lista,modo){
   if(!lista.length) return '<div class="empty">No hay pedidos aquí</div>';
-  return `<div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:13px">
+  return `<div class="tbl-wrap">
+    <table class="tbl">
       <thead>
-        <tr style="background:#1a1a2e;color:#8888aa;font-size:11px;text-transform:uppercase;letter-spacing:1px">
-          <th style="padding:10px 12px;text-align:left;border-bottom:1px solid #2a2a4a">Tipo</th>
-          <th style="padding:10px 12px;text-align:left;border-bottom:1px solid #2a2a4a">Producto</th>
-          <th style="padding:10px 12px;text-align:left;border-bottom:1px solid #2a2a4a">Modelo</th>
-          <th style="padding:10px 12px;text-align:center;border-bottom:1px solid #2a2a4a">Cant.</th>
-          <th style="padding:10px 12px;text-align:left;border-bottom:1px solid #2a2a4a">Tienda</th>
-          <th style="padding:10px 12px;text-align:left;border-bottom:1px solid #2a2a4a">Estado</th>
-          <th style="padding:10px 12px;text-align:center;border-bottom:1px solid #2a2a4a">Acción</th>
+        <tr>
+          <th>Tipo</th>
+          <th>Producto</th>
+          <th class="col-hide">Modelo</th>
+          <th style="text-align:center">Cant.</th>
+          <th class="col-hide">Tienda</th>
+          <th>Estado</th>
+          <th style="text-align:center">Acción</th>
         </tr>
       </thead>
       <tbody>
-        ${lista.map((ped,i)=>{
-          const color=TIPO_COLOR[ped.tipo]||'#8888ff';
+        ${lista.map(ped=>{
           const icon=TIPO_ICON[ped.tipo]||'📋';
-          const bg=i%2===0?'#0f0f1a':'#141420';
-          return `<tr style="background:${bg};border-bottom:1px solid #1a1a2a">
-            <td style="padding:10px 12px;white-space:nowrap"><span style="color:${color};font-weight:700;font-size:12px">${icon} ${ped.tipo}</span></td>
-            <td style="padding:10px 12px;font-weight:600;color:#fff">${ped.producto_nombre}</td>
-            <td style="padding:10px 12px;color:#aaaaff">${ped.modelo_marca||'—'}</td>
-            <td style="padding:10px 12px;text-align:center;color:#fff">${ped.cantidad}</td>
-            <td style="padding:10px 12px;color:#8888aa">${ped.tienda}</td>
-            <td style="padding:10px 12px"><span class="badge ${ped.estado}">${ped.estado}</span></td>
-            <td style="padding:10px 12px;text-align:center">
+          return `<tr>
+            <td><span class="badge ${ped.tipo}">${icon} ${ped.tipo}</span></td>
+            <td style="font-weight:600;color:#e2e2f0;max-width:180px">${ped.producto_nombre}</td>
+            <td class="col-hide" style="color:#9999cc">${ped.modelo_marca||'—'}</td>
+            <td style="text-align:center;color:#e2e2f0;font-weight:600">${ped.cantidad}</td>
+            <td class="col-hide" style="color:#7777aa">${ped.tienda}</td>
+            <td><span class="badge ${ped.estado}">${ped.estado}</span></td>
+            <td style="text-align:center;white-space:nowrap">
               ${ROL==='encargado'&&ped.estado==='pendiente'?`<button class="btn btn-success btn-sm" onclick="cambiarEstado(${ped.id},'llego',null,'${modo}')">✅ Ya lo llevé</button>`:''}
               ${ROL==='asesor'&&ped.estado==='pendiente'?`<button class="btn btn-danger btn-sm" onclick="borrarPedido(${ped.id},'${modo}')">❌ Cancelar</button>`:''}
             </td>
@@ -683,6 +737,17 @@ function mostrarOk(id){
   el.style.display='block';
   setTimeout(()=>el.style.display='none',3000);
 }
+
+// ── DROPDOWN ─────────────────────────────────────────────────────────────────
+function toggleDropdown(btn){
+  const menu=btn.nextElementSibling;
+  document.querySelectorAll('.dropdown-menu.open').forEach(m=>{if(m!==menu)m.classList.remove('open');});
+  menu.classList.toggle('open');
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.dropdown'))
+    document.querySelectorAll('.dropdown-menu.open').forEach(m=>m.classList.remove('open'));
+});
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 cargarPanel(tabs[0].id);
