@@ -235,6 +235,49 @@ def borrar_pedido(pid):
     except Exception as e:
         return jsonify({'ok': False, 'msg': str(e)})
 
+@app.route('/api/pedidos/accion-masiva', methods=['POST'])
+def accion_masiva():
+    if session.get('rol') != 'bodega':
+        return jsonify({'error': 'no autorizado'}), 401
+    data = request.json
+    producto = data.get('producto_nombre', '').strip()
+    modelo = (data.get('modelo_marca') or '').strip()
+    tipo = data.get('tipo', '').strip()
+    estado = data.get('estado', '').strip()
+    if not producto or not tipo or not estado:
+        return jsonify({'ok': False, 'msg': 'Faltan datos'})
+    estados_validos = {'llego', 'bodega', 'no-surtido'}
+    if estado not in estados_validos:
+        return jsonify({'ok': False, 'msg': 'Estado no válido'})
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        if modelo:
+            cur.execute("""
+                UPDATE pedidos
+                SET estado = %s, fecha_actualizacion = NOW()
+                WHERE producto_nombre = %s
+                  AND tipo = %s
+                  AND COALESCE(modelo_marca, '') = %s
+                  AND estado = 'pendiente'
+            """, (estado, producto, tipo, modelo))
+        else:
+            cur.execute("""
+                UPDATE pedidos
+                SET estado = %s, fecha_actualizacion = NOW()
+                WHERE producto_nombre = %s
+                  AND tipo = %s
+                  AND COALESCE(modelo_marca, '') = ''
+                  AND estado = 'pendiente'
+            """, (estado, producto, tipo))
+        afectados = cur.rowcount
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'ok': True, 'afectados': afectados})
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': str(e)})
+
 @app.route('/api/mas-solicitados')
 def mas_solicitados():
     if 'usuario_id' not in session:
