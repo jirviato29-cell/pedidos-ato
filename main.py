@@ -5,7 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import pg8000.dbapi
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY")
+app.secret_key = os.environ.get("SECRET_KEY", "m1ClaveSecretaMuyLarga2024XYZ!")
 
 def get_db():
     # TODO: mover a variables de entorno una vez confirmada la conexión
