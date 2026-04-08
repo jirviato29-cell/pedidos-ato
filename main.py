@@ -7,33 +7,15 @@ import pg8000.dbapi
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY")
 
-_db_url = os.environ.get("DATABASE_URL", "")
-print(f"DATABASE_URL raw (primeros 40 chars): {repr(_db_url[:40])}")
-
-
 def get_db():
-    database_url = os.environ.get("DATABASE_URL")
-    print(f"[get_db] DATABASE_URL={repr(os.environ.get('DATABASE_URL'))}")
-    print(f"[get_db] DB_USER={repr(os.environ.get('DB_USER'))}")
-    if database_url:
-        u = urllib.parse.urlparse(database_url)
-        conn = pg8000.dbapi.connect(
-            host=u.hostname,
-            port=u.port or 5432,
-            database=u.path.lstrip("/"),
-            user=u.username,
-            password=u.password,
-            ssl_context=False
-        )
-    else:
-        conn = pg8000.dbapi.connect(
-            host=os.environ.get("DB_HOST"),
-            port=int(os.environ.get("DB_PORT") or 5432),
-            database=os.environ.get("DB_NAME"),
-            user=os.environ.get("DB_USER"),
-            password=os.environ.get("DB_PASSWORD"),
-            ssl_context=False
-        )
+    conn = pg8000.dbapi.connect(
+        host=os.environ["DB_HOST"],
+        port=int(os.environ.get("DB_PORT", 5432)),
+        database=os.environ["DB_NAME"],
+        user=os.environ["DB_USER"],
+        password=os.environ["DB_PASSWORD"],
+        ssl_context=False
+    )
     return conn
 
 def init_db():
