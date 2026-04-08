@@ -132,10 +132,16 @@ async function renderNuevo(){
         <option value="sugerido">💡 Sugerido</option>
       </select>
       <label>Categoría</label>
-      <select id="np-cat">
+      <select id="np-cat" onchange="cargarProductos()">
         <option value="">-- Selecciona categoría --</option>
-        ${cats.map(c=>`<option value="${c.id}" data-nombre="${c.nombre}">${c.nombre}</option>`).join('')}
+        ${cats.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('')}
       </select>
+      <div id="campo-prod">
+        <label>Producto</label>
+        <select id="np-prod">
+          <option value="">-- Selecciona categoría primero --</option>
+        </select>
+      </div>
       <div style="margin-top:10px">
         <label class="check-label">
           <input type="checkbox" id="np-nuevo" onchange="toggleNuevo()">
@@ -160,37 +166,58 @@ async function renderNuevo(){
   renderCarrito();
 }
 
+async function cargarProductos(){
+  const catId=document.getElementById('np-cat').value;
+  const sel=document.getElementById('np-prod');
+  if(!catId){
+    sel.innerHTML='<option value="">-- Selecciona categoría primero --</option>';
+    return;
+  }
+  sel.innerHTML='<option value="">Cargando...</option>';
+  const prods=await fetch(`/api/productos?categoria_id=${catId}`).then(r=>r.json());
+  if(!prods.length){
+    sel.innerHTML='<option value="">Sin productos en esta categoría</option>';
+    return;
+  }
+  sel.innerHTML='<option value="">-- Selecciona producto --</option>'+
+    prods.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('');
+}
+
 function toggleNuevo(){
   const checked=document.getElementById('np-nuevo').checked;
   document.getElementById('campo-nuevo').style.display=checked?'block':'none';
+  document.getElementById('campo-prod').style.display=checked?'none':'block';
   document.getElementById('np-cat').disabled=checked;
   document.getElementById('np-cat').style.opacity=checked?'0.4':'1';
 }
 
 function agregarAlCarrito(){
   const esNuevo=document.getElementById('np-nuevo')?.checked;
-  const catSel=document.getElementById('np-cat');
-  const catNombre=catSel?.options[catSel.selectedIndex]?.dataset.nombre||'';
-  const catId=catSel?.value;
   const prodManual=document.getElementById('np-prod-manual')?.value.trim();
   const cant=document.getElementById('np-cant').value.trim();
-  let prodNombre='';
+  let prodNombre='', prodId=null;
   if(esNuevo){
     if(!prodManual){alert('Escribe el nombre del producto');return;}
     prodNombre=prodManual;
   } else {
-    if(!catId){alert('Selecciona una categoría');return;}
-    prodNombre=catNombre;
+    const prodSel=document.getElementById('np-prod');
+    if(!prodSel||!prodSel.value){alert('Selecciona un producto del catálogo');return;}
+    prodId=parseInt(prodSel.value);
+    prodNombre=prodSel.options[prodSel.selectedIndex].textContent;
   }
   if(!cant){alert('Escribe la cantidad');return;}
   carrito.push({
     tipo:document.getElementById('np-tipo').value,
+    producto_id:prodId,
     producto_nombre:prodNombre,
     cantidad:cant,
     modelo_marca:document.getElementById('np-modelo').value.trim(),
     nota:document.getElementById('np-nota').value.trim()
   });
-  document.getElementById('np-cat').value='';
+  const catSel=document.getElementById('np-cat');
+  if(catSel) catSel.value='';
+  const prodSel=document.getElementById('np-prod');
+  if(prodSel) prodSel.innerHTML='<option value="">-- Selecciona categoría primero --</option>';
   document.getElementById('np-cant').value='';
   document.getElementById('np-modelo').value='';
   document.getElementById('np-nota').value='';
@@ -245,7 +272,7 @@ async function enviarCarrito(){
   for(const item of carrito){
     const res=await fetch('/api/pedidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
       tipo:item.tipo,
-      producto_id:null,
+      producto_id:item.producto_id||null,
       producto_nombre:item.producto_nombre,
       cantidad:item.cantidad,
       modelo_marca:item.modelo_marca,
@@ -274,7 +301,7 @@ async function cargarPedidos(modo){
   const agrupar=esBodega&&(modo==='todos'||modo==='urgentes');
   let url='/api/pedidos?';
   if(modo==='urgentes') url+='tipo=urgente&';
-  if(modo==='historial') url+='estado=llego&';
+  if(modo==='historial') url+='historial=1&';
   if(agrupar) url+='agrupar=1&';
   const lista=await fetch(url).then(r=>r.json());
   p.innerHTML=`

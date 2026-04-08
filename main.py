@@ -128,6 +128,7 @@ def get_pedidos():
         estado = request.args.get('estado')
         tienda_f = request.args.get('tienda')
         agrupar = request.args.get('agrupar') == '1'
+        historial = request.args.get('historial') == '1'
         conn = get_db()
         cur = conn.cursor()
         where = []
@@ -141,7 +142,9 @@ def get_pedidos():
         if tipo:
             where.append("p.tipo = %s")
             params.append(tipo)
-        if estado:
+        if historial:
+            where.append("p.estado IN ('llego', 'bodega', 'no-surtido')")
+        elif estado:
             where.append("p.estado = %s")
             params.append(estado)
 
