@@ -8,17 +8,13 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY")
 
 def get_db():
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        claves = {k: v[:30] for k, v in os.environ.items() if any(x in k for x in ("DATA", "PG", "POST", "DB"))}
-        raise RuntimeError(f"DATABASE_URL no encontrada. Variables relacionadas: {claves}")
-    u = urllib.parse.urlparse(database_url)
+    # TODO: mover a variables de entorno una vez confirmada la conexión
     return pg8000.dbapi.connect(
-        host=u.hostname,
-        port=u.port or 5432,
-        database=u.path.lstrip("/"),
-        user=u.username,
-        password=u.password,
+        host="junction.proxy.rlwy.net",
+        port=19313,
+        database="railway",
+        user="postgres",
+        password="wsaHJnpOjtdOluEpcJxxhmwptubxTvZU",
         ssl_context=False
     )
 
