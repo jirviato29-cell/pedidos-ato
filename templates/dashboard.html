@@ -105,7 +105,7 @@ function activarTab(id){
 function cargarPanel(id){
   if(id==='nuevo') renderNuevo();
   else if(id==='mis') cargarPedidos('mis');
-  else if(id==='asesores') cargarPedidos('asesores');
+  else if(id==='asesores') cargarAsesores();
   else if(id==='todos') cargarPedidos('todos');
   else if(id==='urgentes') cargarPedidos('urgentes');
   else if(id==='historial') cargarPedidos('historial');
@@ -290,6 +290,52 @@ async function enviarCarrito(){
   }
 }
 
+// ── ASESORES (encargado) ──────────────────────────────────────────────────────
+async function cargarAsesores(){
+  const p=document.getElementById('panel-asesores');
+  p.innerHTML='<div class="empty">Cargando...</div>';
+  const lista=await fetch('/api/pedidos?').then(r=>r.json());
+  if(!lista.length){p.innerHTML='<div class="empty">No hay pedidos en tu tienda</div>';return;}
+  const porAsesor={};
+  lista.forEach(ped=>{
+    const nombre=ped.solicitante||'Sin nombre';
+    if(!porAsesor[nombre]) porAsesor[nombre]=[];
+    porAsesor[nombre].push(ped);
+  });
+  p.innerHTML=Object.entries(porAsesor).map(([nombre,pedidos])=>{
+    const pendientes=pedidos.filter(x=>x.estado==='pendiente').length;
+    return `<div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="section-title" style="margin:0">👤 ${nombre}</div>
+        <span style="color:#8888aa;font-size:12px">${pedidos.length} pedido${pedidos.length>1?'s':''} · ${pendientes} pendiente${pendientes!==1?'s':''}</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="color:#8888aa;font-size:11px;text-transform:uppercase;letter-spacing:1px">
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #2a2a4a">Tipo</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #2a2a4a">Producto</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #2a2a4a">Modelo</th>
+            <th style="padding:8px 10px;text-align:center;border-bottom:1px solid #2a2a4a">Cant.</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #2a2a4a">Estado</th>
+          </tr></thead>
+          <tbody>${pedidos.map((ped,i)=>{
+            const color=TIPO_COLOR[ped.tipo]||'#8888ff';
+            const icon=TIPO_ICON[ped.tipo]||'📋';
+            const bg=i%2===0?'#0f0f1a':'#141420';
+            return `<tr style="background:${bg};border-bottom:1px solid #1a1a2a">
+              <td style="padding:8px 10px;white-space:nowrap"><span style="color:${color};font-weight:700;font-size:12px">${icon} ${ped.tipo}</span></td>
+              <td style="padding:8px 10px;font-weight:600;color:#fff">${ped.producto_nombre}</td>
+              <td style="padding:8px 10px;color:#aaaaff">${ped.modelo_marca||'—'}</td>
+              <td style="padding:8px 10px;text-align:center;color:#fff">${ped.cantidad}</td>
+              <td style="padding:8px 10px"><span class="badge ${ped.estado}">${ped.estado}</span></td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 // ── LISTAR PEDIDOS ────────────────────────────────────────────────────────────
 const TIPO_ICON={urgente:'🚨',faltante:'📋',especial:'⭐',sugerido:'💡'};
 const TIPO_COLOR={urgente:'#ff6666',faltante:'#8888ff',especial:'#cc88ff',sugerido:'#44cc88'};
@@ -402,6 +448,7 @@ function renderTablaSimple(lista,modo){
             <td style="padding:10px 12px"><span class="badge ${ped.estado}">${ped.estado}</span></td>
             <td style="padding:10px 12px;text-align:center">
               ${ROL==='encargado'&&ped.estado==='pendiente'?`<button class="btn btn-success btn-sm" onclick="cambiarEstado(${ped.id},'llego',null,'${modo}')">✅ Ya lo llevé</button>`:''}
+              ${ROL==='asesor'&&ped.estado==='pendiente'?`<button class="btn btn-danger btn-sm" onclick="borrarPedido(${ped.id},'${modo}')">❌ Cancelar</button>`:''}
             </td>
           </tr>`;
         }).join('')}
@@ -529,7 +576,26 @@ async function cargarUsuarios(){
   const p=document.getElementById('panel-usuarios');
   const lista=await fetch('/api/usuarios').then(r=>r.json());
   p.innerHTML=`
-    <div class="alert-ok" id="ok-usr">✅ Usuario creado</div>
+    <div class="alert-ok" id="ok-usr">✅ Guardado</div>
+    <div class="card" id="form-edit-usr" style="display:none;margin-bottom:16px;border-color:#6c63ff">
+      <div class="section-title">✏️ Editar: <span id="edit-usr-label"></span></div>
+      <input type="hidden" id="edit-usr-id">
+      <div class="grid2">
+        <div><label>Nueva contraseña</label><input id="edit-pwd" type="password" placeholder="Dejar vacío para no cambiar"></div>
+        <div><label>Teléfono WA</label><input id="edit-tel" placeholder="10 dígitos"></div>
+      </div>
+      <div><label>Rol</label>
+        <select id="edit-rol">
+          <option value="asesor">Asesor</option>
+          <option value="encargado">Encargado</option>
+          ${ROL==='bodega'?'<option value="bodega">Bodega</option>':''}
+        </select>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:10px">
+        <button class="btn btn-primary btn-sm" onclick="guardarEdicion()">💾 Guardar cambios</button>
+        <button class="btn btn-danger btn-sm" onclick="cerrarEdicion()">Cancelar</button>
+      </div>
+    </div>
     <div class="card" style="margin-bottom:16px">
       <div class="section-title">➕ Nuevo usuario</div>
       <div class="grid2">
@@ -560,11 +626,41 @@ async function cargarUsuarios(){
         <div class="top-item">
           <div>
             <div style="font-weight:600">${u.nombre}</div>
-            <div style="color:#8888aa;font-size:12px">@${u.usuario} · ${u.tienda}</div>
+            <div style="color:#8888aa;font-size:12px">@${u.usuario} · ${u.tienda}${u.telefono?` · 📱 ${u.telefono}`:''}</div>
           </div>
-          <span class="badge ${u.rol==='bodega'?'urgente':u.rol==='encargado'?'especial':'sugerido'}">${u.rol}</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="badge ${u.rol==='bodega'?'urgente':u.rol==='encargado'?'especial':'sugerido'}">${u.rol}</span>
+            <button class="btn btn-warn btn-sm" onclick="editarUsuario(${u.id},'${u.nombre.replace(/'/g,"\\'")}','${u.telefono||''}','${u.rol}')">✏️</button>
+          </div>
         </div>`).join('')}
     </div>`;
+}
+
+function editarUsuario(id, nombre, tel, rol){
+  document.getElementById('edit-usr-id').value=id;
+  document.getElementById('edit-usr-label').textContent=nombre;
+  document.getElementById('edit-tel').value=tel||'';
+  document.getElementById('edit-rol').value=rol;
+  document.getElementById('edit-pwd').value='';
+  document.getElementById('form-edit-usr').style.display='block';
+  document.getElementById('form-edit-usr').scrollIntoView({behavior:'smooth'});
+}
+
+function cerrarEdicion(){
+  document.getElementById('form-edit-usr').style.display='none';
+}
+
+async function guardarEdicion(){
+  const id=document.getElementById('edit-usr-id').value;
+  const pwd=document.getElementById('edit-pwd').value.trim();
+  const tel=document.getElementById('edit-tel').value.trim();
+  const rol=document.getElementById('edit-rol').value;
+  const body={telefono:tel,rol};
+  if(pwd) body.password=pwd;
+  const res=await fetch(`/api/usuarios/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const data=await res.json();
+  if(data.ok){mostrarOk('ok-usr');cargarUsuarios();}
+  else alert(data.msg||'Error');
 }
 
 async function crearUsuario(){

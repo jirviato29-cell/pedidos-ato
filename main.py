@@ -464,6 +464,34 @@ def get_usuarios():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/usuarios/<int:uid>', methods=['PUT'])
+def editar_usuario(uid):
+    if session.get('rol') not in ['bodega', 'encargado']:
+        return jsonify({'error': 'no autorizado'}), 401
+    data = request.json
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        if session['rol'] == 'encargado':
+            cur.execute("SELECT tienda FROM usuarios WHERE id = %s", (uid,))
+            row = cur.fetchone()
+            if not row or row[0] != session['tienda']:
+                cur.close(); conn.close()
+                return jsonify({'error': 'no autorizado'}), 401
+        sets = ["telefono = %s", "rol = %s"]
+        params = [data.get('telefono', ''), data.get('rol')]
+        if data.get('password'):
+            sets.append("password = %s")
+            params.append(generate_password_hash(data['password']))
+        params.append(uid)
+        cur.execute(f"UPDATE usuarios SET {', '.join(sets)} WHERE id = %s", params)
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': str(e)})
+
 @app.route('/api/usuarios', methods=['POST'])
 def crear_usuario():
     if session.get('rol') not in ['bodega', 'encargado']:
