@@ -7,10 +7,6 @@ import pg8000.dbapi
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY")
 
-print("=== ENV VARS ===")
-for k, v in sorted(os.environ.items()):
-    print(f"  {k}={v}")
-print("=== END ENV ===")
 
 def get_db():
     database_url = os.environ.get("DATABASE_URL")
