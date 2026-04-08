@@ -8,13 +8,10 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY")
 
 def get_db():
-    database_url = (
-        os.environ.get("DATABASE_URL") or
-        os.environ.get("RAILWAY_DATABASE_URL") or
-        os.environ.get("DATABASE_PUBLIC_URL")
-    )
+    database_url = os.environ.get("DATABASE_URL")
     if not database_url:
-        raise RuntimeError("No se encontró ninguna variable de conexión a la BD (DATABASE_URL, RAILWAY_DATABASE_URL, DATABASE_PUBLIC_URL)")
+        claves = {k: v[:30] for k, v in os.environ.items() if any(x in k for x in ("DATA", "PG", "POST", "DB"))}
+        raise RuntimeError(f"DATABASE_URL no encontrada. Variables relacionadas: {claves}")
     u = urllib.parse.urlparse(database_url)
     return pg8000.dbapi.connect(
         host=u.hostname,
