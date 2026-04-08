@@ -127,6 +127,7 @@ def get_pedidos():
         tipo = request.args.get('tipo')
         estado = request.args.get('estado')
         tienda_f = request.args.get('tienda')
+        agrupar = request.args.get('agrupar') == '1'
         conn = get_db()
         cur = conn.cursor()
         where = []
@@ -143,29 +144,61 @@ def get_pedidos():
         if estado:
             where.append("p.estado = %s")
             params.append(estado)
-        where_sql = "WHERE " + " AND ".join(where) if where else ""
-        cur.execute(f"""
-            SELECT p.id, p.tipo, p.tienda, p.usuario_id, p.producto_nombre, p.cantidad,
-                   p.urgencia, p.nota, p.estado, p.fecha_estimada,
-                   p.fecha_creacion, p.fecha_actualizacion, u.nombre as solicitante,
-                   p.modelo_marca, p.producto_id
-            FROM pedidos p
-            LEFT JOIN usuarios u ON p.usuario_id = u.id
-            {where_sql}
-            ORDER BY CASE p.tipo WHEN 'urgente' THEN 1 WHEN 'faltante' THEN 2 WHEN 'especial' THEN 3 ELSE 4 END,
-                     p.fecha_creacion DESC
-        """, params)
-        rows = cur.fetchall()
-        cols = ['id','tipo','tienda','usuario_id','producto_nombre','cantidad','urgencia','nota','estado',
-                'fecha_estimada','fecha_creacion','fecha_actualizacion','solicitante','modelo_marca','producto_id']
-        pedidos = []
-        for row in rows:
-            d = dict(zip(cols, row))
-            if d['fecha_creacion']:
-                d['fecha_creacion'] = d['fecha_creacion'].isoformat()
-            if d['fecha_actualizacion']:
-                d['fecha_actualizacion'] = d['fecha_actualizacion'].isoformat()
-            pedidos.append(d)
+
+        if agrupar and session['rol'] == 'bodega':
+            grp_where = list(where)
+            grp_params = list(params)
+            grp_where.append("p.estado = 'pendiente'")
+            where_sql = "WHERE " + " AND ".join(grp_where)
+            cur.execute(f"""
+                SELECT p.producto_nombre, p.modelo_marca, p.tipo,
+                       STRING_AGG(DISTINCT p.tienda, ',') AS tiendas,
+                       COUNT(*) AS num_pedidos,
+                       COUNT(DISTINCT p.tienda) AS num_tiendas
+                FROM pedidos p
+                {where_sql}
+                GROUP BY p.producto_nombre, p.modelo_marca, p.tipo
+                ORDER BY CASE p.tipo WHEN 'urgente' THEN 1 WHEN 'faltante' THEN 2 WHEN 'especial' THEN 3 ELSE 4 END,
+                         COUNT(DISTINCT p.tienda) DESC, COUNT(*) DESC
+            """, grp_params)
+            rows = cur.fetchall()
+            pedidos = []
+            for row in rows:
+                tiendas_str = row[3] or ''
+                pedidos.append({
+                    'producto_nombre': row[0],
+                    'modelo_marca': row[1] or '',
+                    'tipo': row[2],
+                    'tiendas': [t.strip() for t in tiendas_str.split(',') if t.strip()],
+                    'num_pedidos': row[4],
+                    'num_tiendas': row[5],
+                    'cantidad_total': row[4]
+                })
+        else:
+            where_sql = "WHERE " + " AND ".join(where) if where else ""
+            cur.execute(f"""
+                SELECT p.id, p.tipo, p.tienda, p.usuario_id, p.producto_nombre, p.cantidad,
+                       p.urgencia, p.nota, p.estado, p.fecha_estimada,
+                       p.fecha_creacion, p.fecha_actualizacion, u.nombre as solicitante,
+                       p.modelo_marca, p.producto_id
+                FROM pedidos p
+                LEFT JOIN usuarios u ON p.usuario_id = u.id
+                {where_sql}
+                ORDER BY CASE p.tipo WHEN 'urgente' THEN 1 WHEN 'faltante' THEN 2 WHEN 'especial' THEN 3 ELSE 4 END,
+                         p.fecha_creacion DESC
+            """, params)
+            rows = cur.fetchall()
+            cols = ['id','tipo','tienda','usuario_id','producto_nombre','cantidad','urgencia','nota','estado',
+                    'fecha_estimada','fecha_creacion','fecha_actualizacion','solicitante','modelo_marca','producto_id']
+            pedidos = []
+            for row in rows:
+                d = dict(zip(cols, row))
+                if d['fecha_creacion']:
+                    d['fecha_creacion'] = d['fecha_creacion'].isoformat()
+                if d['fecha_actualizacion']:
+                    d['fecha_actualizacion'] = d['fecha_actualizacion'].isoformat()
+                pedidos.append(d)
+
         cur.close()
         conn.close()
         return jsonify(pedidos)
