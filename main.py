@@ -5,15 +5,15 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import pg8000.dbapi
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "clave-secreta-pedidos")
+app.secret_key = os.environ.get("SECRET_KEY")
 
 def get_db():
     conn = pg8000.dbapi.connect(
-        host="junction.proxy.rlwy.net",
-        port=19313,
-        database="railway",
-        user="postgres",
-        password="wsaHJnpOjtdOluEpcJxxhmwptubxTvZU",
+        host=os.environ.get("DB_HOST"),
+        port=int(os.environ.get("DB_PORT", 5432)),
+        database=os.environ.get("DB_NAME"),
+        user=os.environ.get("DB_USER"),
+        password=os.environ.get("DB_PASSWORD"),
         ssl_context=False
     )
     return conn
