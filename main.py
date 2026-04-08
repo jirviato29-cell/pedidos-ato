@@ -13,6 +13,8 @@ print(f"DATABASE_URL raw (primeros 40 chars): {repr(_db_url[:40])}")
 
 def get_db():
     database_url = os.environ.get("DATABASE_URL")
+    print(f"[get_db] DATABASE_URL={repr(os.environ.get('DATABASE_URL'))}")
+    print(f"[get_db] DB_USER={repr(os.environ.get('DB_USER'))}")
     if database_url:
         u = urllib.parse.urlparse(database_url)
         conn = pg8000.dbapi.connect(
