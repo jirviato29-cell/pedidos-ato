@@ -148,7 +148,7 @@ document.getElementById('info-rol').textContent=ROL==='bodega'?'Bodega / Admin':
 
 const TABS={
   asesor:[{id:'nuevo',label:'➕ Nuevo pedido'},{id:'mis',label:'📋 Mis pedidos'}],
-  encargado:[{id:'asesores',label:'👥 Asesores'},{id:'nuevo',label:'➕ Nuevo pedido'},{id:'mis',label:'📋 Pedidos tienda'},{id:'usuarios',label:'👤 Usuarios'}],
+  encargado:[{id:'promotores',label:'👥 Promotores'},{id:'pedidos-enc',label:'📋 Pedidos'},{id:'lista-dia',label:'📌 Lista del día'}],
   bodega:[{id:'todos',label:'📋 Todos'},{id:'urgentes',label:'🚨 Pedidos urgentes'},{id:'top',label:'🔁 Me lo piden mucho'},{id:'catalogo',label:'📦 Catálogo'},{id:'historial',label:'✅ Historial'},{id:'usuarios',label:'👤 Usuarios'}]
 };
 
@@ -178,7 +178,9 @@ function activarTab(id){
 function cargarPanel(id){
   if(id==='nuevo') renderNuevo();
   else if(id==='mis') cargarPedidos('mis');
-  else if(id==='asesores') cargarAsesores();
+  else if(id==='promotores') cargarPromotores();
+  else if(id==='pedidos-enc') cargarPedidosEncargado();
+  else if(id==='lista-dia') renderListaDia();
   else if(id==='todos') cargarPedidos('todos');
   else if(id==='urgentes') cargarPedidos('urgentes');
   else if(id==='historial') cargarPedidos('historial');
@@ -484,101 +486,104 @@ async function enviarCarrito(){
   }
 }
 
-// ── ASESORES (encargado) ──────────────────────────────────────────────────────
-async function cargarAsesores(){
-  const p=document.getElementById('panel-asesores');
+// ── ENCARGADO: PROMOTORES ─────────────────────────────────────────────────────
+async function cargarPromotores(){
+  const p=document.getElementById('panel-promotores');
   p.innerHTML='<div class="empty">Cargando...</div>';
-  const lista=await fetch('/api/pedidos?').then(r=>r.json());
-  if(!lista.length){p.innerHTML='<div class="empty">No hay pedidos en tu tienda</div>';return;}
-
-  // Agrupar por asesor
-  const porAsesor={};
-  lista.forEach(ped=>{
-    const nombre=ped.solicitante||'Sin nombre';
-    if(!porAsesor[nombre]) porAsesor[nombre]=[];
-    porAsesor[nombre].push(ped);
-  });
-
-  // Stats globales
-  const totalPendientes=lista.filter(x=>x.estado==='pendiente').length;
-  const totalAsesores=Object.keys(porAsesor).length;
-
-  // Ordenar: más pendientes primero
-  const ordenados=Object.entries(porAsesor).sort(([,a],[,b])=>
-    b.filter(x=>x.estado==='pendiente').length - a.filter(x=>x.estado==='pendiente').length
-  );
-
-  const resumen=`
-    <div class="card" style="background:linear-gradient(135deg,#1a2fa8 0%,#2a4fd4 100%);border:none;margin-bottom:16px">
-      <div style="display:flex;gap:32px;flex-wrap:wrap">
-        <div style="color:#fff">
-          <div style="font-size:30px;font-weight:800;line-height:1">${totalPendientes}</div>
-          <div style="font-size:12px;opacity:.75;margin-top:4px">pedidos pendientes</div>
-        </div>
-        <div style="color:#fff">
-          <div style="font-size:30px;font-weight:800;line-height:1">${lista.length}</div>
-          <div style="font-size:12px;opacity:.75;margin-top:4px">pedidos totales</div>
-        </div>
-        <div style="color:#fff">
-          <div style="font-size:30px;font-weight:800;line-height:1">${totalAsesores}</div>
-          <div style="font-size:12px;opacity:.75;margin-top:4px">asesore${totalAsesores!==1?'s':''}</div>
-        </div>
-      </div>
-    </div>`;
-
-  const cards=ordenados.map(([nombre,pedidos])=>{
-    const pendientes=pedidos.filter(x=>x.estado==='pendiente').length;
-    const pColor=pendientes===0?'#16a34a':pendientes<=2?'#ea580c':'#dc2626';
-    const pBg=pendientes===0?'#f0fdf4':pendientes<=2?'#fff7ed':'#fef2f2';
-    const inicial=nombre.trim().charAt(0).toUpperCase();
-    return `<div class="card" style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-        <div style="display:flex;align-items:center;gap:12px">
-          <div style="background:#eff3ff;color:#1a2fa8;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex-shrink:0;border:2px solid #c7d2fe">${inicial}</div>
-          <div>
-            <div style="font-weight:700;font-size:15px;color:#1a1f36">${nombre}</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:2px">${pedidos.length} pedido${pedidos.length!==1?'s':''} en total</div>
-          </div>
-        </div>
-        <span style="background:${pBg};color:${pColor};padding:7px 16px;border-radius:20px;font-size:13px;font-weight:700;white-space:nowrap">
-          ${pendientes === 0 ? '✅ Al día' : `🕐 ${pendientes} pendiente${pendientes!==1?'s':''}`}
-        </span>
-      </div>
-      <div class="tbl-wrap">
-        <table class="tbl">
-          <thead><tr>
-            <th>Tipo</th>
-            <th>Producto</th>
-            <th class="col-hide">Modelo</th>
-            <th style="text-align:center">Cant.</th>
-            <th>Estado</th>
-            <th style="text-align:center">Acción</th>
-          </tr></thead>
-          <tbody>${pedidos.map(ped=>{
-            const icon=TIPO_ICON[ped.tipo]||'📋';
-            return `<tr>
-              <td><span class="badge ${ped.tipo}">${icon} ${TIPO_LABEL[ped.tipo]||ped.tipo}</span></td>
-              <td>
-                <div style="font-weight:600;color:#1a1f36">${ped.producto_nombre}</div>
-                ${ped.modelo_marca?`<div style="font-size:11px;color:#6b7280;margin-top:1px">${ped.modelo_marca}</div>`:''}
-                ${ped.nota?`<div style="font-size:11px;color:#9ca3af;margin-top:1px">📝 ${ped.nota}</div>`:''}
-              </td>
-              <td class="col-hide" style="color:#6b7280">${ped.modelo_marca||'—'}</td>
-              <td style="text-align:center;font-weight:700;color:#1a1f36">${ped.cantidad}</td>
-              <td><span class="badge ${ped.estado}">${ped.estado}</span></td>
-              <td style="text-align:center">
-                ${ped.estado==='pendiente'
-                  ?`<button class="btn btn-success btn-sm" onclick="cambiarEstado(${ped.id},'llego',null,'asesores')">✅ Recibido</button>`
-                  :'<span style="color:#9ca3af;font-size:12px">—</span>'}
-              </td>
-            </tr>`;
-          }).join('')}</tbody>
-        </table>
-      </div>
+  const [usuarios,pedidos]=await Promise.all([
+    fetch('/api/usuarios').then(r=>r.json()),
+    fetch('/api/pedidos').then(r=>r.json())
+  ]);
+  const hoy=new Date().toISOString().slice(0,10);
+  const asesores=usuarios.filter(u=>u.rol==='asesor');
+  if(!asesores.length){p.innerHTML='<div class="empty">No hay promotores en tu tienda</div>';return;}
+  const pedidosHoy=pedidos.filter(ped=>ped.fecha_creacion&&ped.fecha_creacion.slice(0,10)===hoy);
+  const cards=asesores.map(u=>{
+    const inicial=u.nombre.trim().charAt(0).toUpperCase();
+    const count=pedidosHoy.filter(ped=>ped.usuario_id===u.id).length;
+    return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+      <div style="background:#eff3ff;color:#1a2fa8;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0">${inicial}</div>
+      <div style="flex:1;font-weight:600;color:#1a1f36;font-size:14px">${u.nombre}</div>
+      <span style="font-size:12px;font-weight:700;color:${count>0?'#1d4ed8':'#9ca3af'};background:${count>0?'#eff6ff':'#f3f4f6'};padding:3px 10px;border-radius:20px">${count>0?`${count} pedido${count!==1?'s':''} hoy`:'Sin pedidos hoy'}</span>
     </div>`;
   }).join('');
+  p.innerHTML=`<div style="display:flex;flex-direction:column;gap:6px">${cards}</div>`;
+}
 
-  p.innerHTML=resumen+cards;
+// ── ENCARGADO: PEDIDOS ────────────────────────────────────────────────────────
+const TIPO_CORTO_ENC={urgente:'🚨 Urgente',faltante:'📦 Lo vendí',demanda:'📢 Demanda',sugerido:'📢 Demanda',especial:'⭐ Especial'};
+let _listaDia=[];
+
+async function cargarPedidosEncargado(){
+  const p=document.getElementById('panel-pedidos-enc');
+  p.innerHTML='<div class="empty">Cargando...</div>';
+  const lista=await fetch('/api/pedidos?estado=pendiente').then(r=>r.json());
+  if(!lista.length){p.innerHTML='<div class="empty">No hay pedidos pendientes</div>';return;}
+  p.innerHTML=`
+    <div style="margin-bottom:8px;display:flex;justify-content:flex-end">
+      <button class="btn btn-primary btn-sm" onclick="agregarAListaDia()">📋 Agregar a lista del día</button>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl" id="tbl-pedidos-enc">
+        <thead><tr>
+          <th style="width:32px"><input type="checkbox" id="chk-todos" onchange="toggleTodosChk(this)"></th>
+          <th>Tipo</th>
+          <th>Producto</th>
+          <th class="col-hide">Modelo</th>
+        </tr></thead>
+        <tbody>
+          ${lista.map(ped=>`<tr>
+            <td><input type="checkbox" class="chk-ped" data-id="${ped.id}" data-nombre="${ped.producto_nombre.replace(/"/g,'&quot;')}" data-modelo="${(ped.modelo_marca||'').replace(/"/g,'&quot;')}" data-tipo="${ped.tipo}"></td>
+            <td><span class="badge ${ped.tipo}" style="font-size:11px;padding:2px 6px">${TIPO_CORTO_ENC[ped.tipo]||ped.tipo}</span></td>
+            <td style="font-weight:600;color:#1a1f36;font-size:13px">${ped.producto_nombre}</td>
+            <td class="col-hide" style="color:#6b7280;font-size:12px">${ped.modelo_marca||'—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function toggleTodosChk(chk){
+  document.querySelectorAll('.chk-ped').forEach(c=>c.checked=chk.checked);
+}
+
+function agregarAListaDia(){
+  const seleccionados=document.querySelectorAll('.chk-ped:checked');
+  if(!seleccionados.length){alert('Selecciona al menos un pedido');return;}
+  seleccionados.forEach(chk=>{
+    const id=parseInt(chk.dataset.id);
+    if(!_listaDia.find(x=>x.id===id)){
+      _listaDia.push({id,nombre:chk.dataset.nombre,modelo:chk.dataset.modelo,tipo:chk.dataset.tipo});
+    }
+  });
+  cargarPanel('lista-dia');
+  document.querySelectorAll('.chk-ped').forEach(c=>c.checked=false);
+  const chkTodos=document.getElementById('chk-todos');
+  if(chkTodos) chkTodos.checked=false;
+}
+
+// ── ENCARGADO: LISTA DEL DÍA ──────────────────────────────────────────────────
+function renderListaDia(){
+  const p=document.getElementById('panel-lista-dia');
+  if(!_listaDia.length){
+    p.innerHTML='<div class="empty">No has agregado pedidos a la lista del día.<br>Ve a "Pedidos" y selecciona los que quieres trabajar hoy.</div>';
+    return;
+  }
+  p.innerHTML=`
+    <div style="font-weight:700;color:#1a1f36;font-size:13px;margin-bottom:8px">📌 Lista del día (${_listaDia.length})</div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      ${_listaDia.map((item,i)=>`
+        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px">
+          <span class="badge ${item.tipo}" style="font-size:11px;padding:2px 6px;flex-shrink:0;white-space:nowrap">${TIPO_CORTO_ENC[item.tipo]||item.tipo}</span>
+          <span style="flex:1;font-weight:600;color:#1a1f36;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.nombre}${item.modelo?' · '+item.modelo:''}</span>
+          <button class="btn btn-sm" style="flex-shrink:0;font-size:11px;padding:2px 8px;background:#f1f5f9;color:#374151;border:1px solid #d1d5db" onclick="quitarDeListaDia(${i})">✕ Quitar</button>
+        </div>`).join('')}
+    </div>`;
+}
+
+function quitarDeListaDia(i){
+  _listaDia.splice(i,1);
+  renderListaDia();
 }
 
 // ── LISTAR PEDIDOS ────────────────────────────────────────────────────────────
