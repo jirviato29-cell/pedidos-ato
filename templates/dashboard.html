@@ -149,7 +149,7 @@ document.getElementById('info-rol').textContent=ROL==='bodega'?'Bodega / Admin':
 const TABS={
   asesor:[{id:'nuevo',label:'➕ Nuevo pedido'},{id:'mis',label:'📋 Mis pedidos'}],
   encargado:[{id:'asesores',label:'👥 Asesores'},{id:'nuevo',label:'➕ Nuevo pedido'},{id:'mis',label:'📋 Pedidos tienda'},{id:'usuarios',label:'👤 Usuarios'}],
-  bodega:[{id:'todos',label:'📋 Todos'},{id:'urgentes',label:'🚨 Urgentes'},{id:'top',label:'🔥 Más pedidos'},{id:'catalogo',label:'📦 Catálogo'},{id:'historial',label:'✅ Historial'},{id:'usuarios',label:'👤 Usuarios'}]
+  bodega:[{id:'todos',label:'📋 Todos'},{id:'urgentes',label:'🚨 Pedidos urgentes'},{id:'top',label:'🔁 Me lo piden mucho'},{id:'catalogo',label:'📦 Catálogo'},{id:'historial',label:'✅ Historial'},{id:'usuarios',label:'👤 Usuarios'}]
 };
 
 const tabs=TABS[ROL]||TABS.asesor;
@@ -437,6 +437,8 @@ async function cargarPedidos(modo){
         <option value="urgente">🚨 Pedido urgente</option>
         <option value="faltante">📦 Me falta en el módulo — lo vendí</option>
         <option value="demanda">🔁 Me lo piden mucho y no tengo</option>
+        <option value="especial">⭐ Pedido especial</option>
+        <option value="sugerido">🔁 Me lo piden mucho (antiguo)</option>
       </select>
     </div>
     <div id="lista-${modo}">${agrupar?renderTablaAgrupada(lista,modo):renderTablaSimple(lista,modo)}</div>`;
