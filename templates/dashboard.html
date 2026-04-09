@@ -256,8 +256,53 @@ async function renderNuevo(){
         <button class="btn btn-primary" onclick="agregarAlCarrito()">➕ Agregar al pedido</button>
       </div>
     </div>
-    <div id="carrito-container"></div>`;
+    <div id="carrito-container"></div>
+    <div id="pedidos-hoy-container"></div>`;
   renderCarrito();
+  cargarPedidosHoy();
+}
+
+async function cargarPedidosHoy(){
+  const c=document.getElementById('pedidos-hoy-container');
+  if(!c) return;
+  const lista=await fetch('/api/pedidos').then(r=>r.json());
+  const hoy=new Date().toISOString().slice(0,10);
+  const deHoy=lista.filter(p=>p.fecha_creacion&&p.fecha_creacion.slice(0,10)===hoy)
+                   .sort((a,b)=>new Date(b.fecha_creacion)-new Date(a.fecha_creacion));
+  if(!deHoy.length){
+    c.innerHTML='';
+    return;
+  }
+  const ESTADO_LABEL={pendiente:'⏳ Pendiente',llego:'✅ Surtido',bodega:'📦 En bodega','no-surtido':'❌ No surtido',camino:'🚚 En camino'};
+  const ESTADO_COLOR={pendiente:'#6b7280',llego:'#16a34a',bodega:'#1d4ed8','no-surtido':'#dc2626',camino:'#ea580c'};
+  c.innerHTML=`
+    <div style="font-weight:700;color:#1a1f36;font-size:14px;margin:16px 0 8px">📅 Pedidos de hoy (${deHoy.length})</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${deHoy.map(ped=>{
+        const icon=TIPO_ICON[ped.tipo]||'📋';
+        const estadoLabel=ESTADO_LABEL[ped.estado]||ped.estado;
+        const estadoColor=ESTADO_COLOR[ped.estado]||'#6b7280';
+        return `<div class="card" style="padding:12px 14px;margin:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:11px;color:#9ca3af;margin-bottom:4px">${fmtFecha(ped.fecha_creacion)}</div>
+              <div style="font-weight:700;color:#1a1f36;font-size:14px">${ped.producto_nombre}</div>
+              ${ped.modelo_marca?`<div style="font-size:12px;color:#6b7280">${ped.modelo_marca}</div>`:''}
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px">
+                <span class="badge ${ped.tipo}">${icon} ${TIPO_LABEL[ped.tipo]||ped.tipo}</span>
+                <span style="font-size:12px;font-weight:600;color:${estadoColor}">${estadoLabel}</span>
+              </div>
+            </div>
+            ${ped.estado==='pendiente'?`<button class="btn btn-danger btn-sm" style="flex-shrink:0" onclick="borrarPedidoNuevo(${ped.id})">❌ Cancelar</button>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+async function borrarPedidoNuevo(id){
+  await borrarPedido(id,'nuevo');
+  cargarPedidosHoy();
 }
 
 async function cargarProductos(){
@@ -372,6 +417,7 @@ async function confirmarPedidoConTipo(tipo){
       resumen.innerHTML='<div style="font-size:15px;font-weight:700;color:#16a34a;text-align:center;padding:12px">✅ ¡Pedido enviado! Bodega lo verá pronto</div>';
       document.getElementById('ia-texto').value='';
       _iaDatos=null;
+      cargarPedidosHoy();
       setTimeout(()=>{ resumen.style.display='none'; },2500);
     }else{
       resumen.innerHTML='<div style="font-size:13px;color:#dc2626;text-align:center;padding:8px">⚠️ '+(data.msg||'Error al guardar')+'</div>';
@@ -572,9 +618,8 @@ async function cargarPedidos(modo){
         <option value="">Todos los tipos</option>
         <option value="urgente">🚨 Pedido urgente</option>
         <option value="faltante">📦 Me falta en el módulo — lo vendí</option>
-        <option value="demanda">🔁 Me lo piden mucho y no tengo</option>
-        <option value="especial">⭐ Pedido especial</option>
         <option value="sugerido">🔁 Me lo piden mucho y no tengo</option>
+        <option value="especial">⭐ Pedido especial</option>
       </select>
     </div>
     <div id="lista-${modo}">${agrupar?renderTablaAgrupada(lista,modo):renderTablaSimple(lista,modo)}</div>`;
