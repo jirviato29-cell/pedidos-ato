@@ -268,7 +268,7 @@ async function cargarPedidosHoy(){
   if(!c) return;
   const lista=await fetch('/api/pedidos').then(r=>r.json());
   const hoy=new Date().toISOString().slice(0,10);
-  const deHoy=lista.filter(p=>p.fecha_creacion&&p.fecha_creacion.slice(0,10)===hoy)
+  const deHoy=lista.filter(p=>p.fecha_creacion&&p.fecha_creacion.slice(0,10)===hoy&&(ROL!=='encargado'||p.solicitante===NOMBRE))
                    .sort((a,b)=>new Date(b.fecha_creacion)-new Date(a.fecha_creacion));
   if(!deHoy.length){
     c.innerHTML='';
@@ -513,22 +513,16 @@ async function cargarEquipo(){
         <button class="btn btn-success btn-sm" style="flex-shrink:0;font-size:11px;padding:2px 8px" onclick="aprobarPedidoEquipo(${ped.id},'${ped.producto_nombre.replace(/'/g,"\\'")}','${(ped.modelo_marca||'').replace(/'/g,"\\'")}','${ped.tipo}',this)">✅ Aprobar</button>
         <button class="btn btn-danger btn-sm" style="flex-shrink:0;font-size:11px;padding:2px 8px" onclick="rechazarPedidoEquipo(${ped.id},this)">❌ Rechazar</button>
       </div>`).join('');
-    return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
-      <div style="padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer" onclick="toggleAsesor('${uid}')">
+    return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:2px">
+      <div style="padding:10px 14px;display:flex;align-items:center;gap:10px">
         <div style="background:#eff3ff;color:#1a2fa8;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">${inicial}</div>
         <span style="flex:1;font-weight:600;color:#1a1f36;font-size:14px">${u.nombre}</span>
-        <span style="font-size:12px;font-weight:700;color:${count>0?'#1d4ed8':'#9ca3af'};background:${count>0?'#eff6ff':'#f3f4f6'};padding:2px 10px;border-radius:20px">${count>0?`${count} pendiente${count!==1?'s':''}`:'Al día ✅'}</span>
-        <span style="color:#9ca3af;font-size:12px">${count>0?'▼':''}</span>
+        <span style="font-size:12px;font-weight:700;color:${count>0?'#1d4ed8':'#9ca3af'};background:${count>0?'#eff6ff':'#f3f4f6'};padding:2px 10px;border-radius:20px">${count>0?`${count} pedido${count!==1?'s':''}`:'Sin pedidos hoy ✅'}</span>
       </div>
-      ${count>0?`<div id="${uid}" style="display:none;padding:0 14px 10px">${pedRows}</div>`:''}
+      ${count>0?`<div style="padding:0 14px 10px">${pedRows}</div>`:''}
     </div>`;
   }).join('');
   p.innerHTML=`<div style="display:flex;flex-direction:column;gap:6px">${cards}</div>`;
-}
-
-function toggleAsesor(uid){
-  const el=document.getElementById(uid);
-  if(el) el.style.display=el.style.display==='none'?'block':'none';
 }
 
 function aprobarPedidoEquipo(id,nombre,modelo,tipo,btn){
@@ -536,14 +530,16 @@ function aprobarPedidoEquipo(id,nombre,modelo,tipo,btn){
     _listaDia.push({id,nombre,modelo,tipo});
   }
   const fila=btn.closest('div[style*="border-top"]');
-  if(fila) fila.style.opacity='0.4';
+  if(fila){ fila.style.opacity='0.45'; fila.style.pointerEvents='none'; }
   btn.disabled=true;
-  btn.textContent='✅ En lista';
-  btn.nextElementSibling.disabled=true;
+  btn.textContent='✅ Aprobado';
+  // Refrescar lista del día si está activa
+  const panelLista=document.getElementById('panel-lista-dia');
+  if(panelLista&&panelLista.classList.contains('active')) renderListaDia();
 }
 
 async function rechazarPedidoEquipo(id,btn){
-  if(!confirm('¿Eliminar este pedido?')) return;
+  if(!confirm('¿Rechazar este pedido?')) return;
   const res=await fetch(`/api/pedidos/${id}`,{method:'DELETE'});
   const data=await res.json();
   if(data.ok){
@@ -680,7 +676,8 @@ function renderTablaSimple(lista,modo){
   const esMisPedidosAsesor=ROL==='asesor'&&modo==='mis';
 
   if(esMisPedidosAsesor){
-    const sorted=[...lista].sort((a,b)=>new Date(b.fecha_creacion)-new Date(a.fecha_creacion));
+    const filtrada=ROL==='encargado'?lista.filter(p=>p.solicitante===NOMBRE):lista;
+    const sorted=[...filtrada].sort((a,b)=>new Date(b.fecha_creacion)-new Date(a.fecha_creacion));
     const pendientes=sorted.filter(p=>p.estado==='pendiente');
     const resueltos=sorted.filter(p=>['llego','bodega','no-surtido'].includes(p.estado));
     const ESTADO_LABEL={llego:'✅ Surtido',bodega:'📦 En bodega','no-surtido':'❌ No surtido',camino:'🚚 En camino'};
