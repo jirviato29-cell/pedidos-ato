@@ -332,7 +332,7 @@ async function analizarConIA(){
   estado.style.display='none';
   resumen.style.display='none';
   try{
-    const res=await fetch('/api/ia/analizar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({texto})});
+    const res=await fetch('/api/analizar-pedido',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({texto})});
     const data=await res.json();
     if(!data.ok){
       estado.textContent='⚠️ '+(data.msg||'Error al analizar');

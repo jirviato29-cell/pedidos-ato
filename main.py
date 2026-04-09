@@ -549,8 +549,8 @@ def whatsapp_link(pid):
 
 # ── IA ────────────────────────────────────────────────────────────────────────
 
-@app.route('/api/ia/analizar', methods=['POST'])
-def ia_analizar():
+@app.route('/api/analizar-pedido', methods=['POST'])
+def analizar_pedido():
     if 'usuario_id' not in session:
         return jsonify({'error': 'no autorizado'}), 401
     texto = (request.json or {}).get('texto', '').strip()
@@ -558,18 +558,18 @@ def ia_analizar():
         return jsonify({'ok': False, 'msg': 'Escribe tu pedido primero'})
     api_key = os.environ.get('ANTHROPIC_API_KEY')
     if not api_key:
-        return jsonify({'ok': False, 'msg': 'ANTHROPIC_API_KEY no configurada'})
+        return jsonify({'ok': False, 'msg': 'Servicio IA no disponible'})
     try:
         client = anthropic.Anthropic(api_key=api_key)
         msg = client.messages.create(
-            model='claude-sonnet-4-20250514',
+            model='claude-sonnet-4-6',
             max_tokens=300,
             system=(
                 'Eres un asistente para una tienda de accesorios de celular en México. '
                 'El asesor describe un pedido con sus propias palabras. '
                 'Extrae la información y responde ÚNICAMENTE con un JSON válido con estos campos exactos:\n'
-                '- "tipo": uno de estos valores exactos: "faltante", "demanda", "urgente", "especial"\n'
-                '  (faltante=lo vendió, demanda=lo piden mucho, urgente=necesita rápido, especial=pedido especial)\n'
+                '- "tipo": uno de estos valores exactos: "faltante", "demanda", "urgente"\n'
+                '  (faltante=lo vendió, demanda=lo piden mucho, urgente=necesita rápido)\n'
                 '- "producto_nombre": nombre del producto (string)\n'
                 '- "modelo_marca": modelo o marca específica, vacío si no aplica (string)\n'
                 '- "cantidad": cantidad estimada como texto, ej: "3 piezas" (string)\n'
