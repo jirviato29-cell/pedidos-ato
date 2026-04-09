@@ -4,7 +4,7 @@ import base64
 import urllib.parse
 import anthropic
 
-_K = base64.b64decode(b'c2stYW50LWFwaTAzLVEyZnY4c2RUMEtxMmhnaHBXc3lqXzhueEZIMVdJeUFyWW9CZ1lzcFlsNzI1TGhuVEVrN0hIZGxUVng3MllFbkN1N0U2cGFNODVsVi1aNS0zZ3BJeVlBLWs5cG1kQUFB').decode()
+ANTHROPIC_API_KEY = "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"
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 import pg8000.dbapi
@@ -559,7 +559,7 @@ def analizar_pedido():
     texto = (request.json or {}).get('texto', '').strip()
     if not texto:
         return jsonify({'ok': False, 'msg': 'Escribe tu pedido primero'})
-    api_key = os.environ.get('AI_API_KEY') or _K
+    api_key = ANTHROPIC_API_KEY
     print(f"[IA] AI_API_KEY presente: {bool(api_key)}, longitud: {len(api_key) if api_key else 0}")
     if not api_key:
         print("[IA] ERROR: AI_API_KEY no está configurada en el entorno")
