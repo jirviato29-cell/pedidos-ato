@@ -595,6 +595,9 @@ def analizar_pedido():
         print(f"[IA] Exception: {type(e).__name__}: {e}")
         return jsonify({'ok': False, 'msg': str(e)})
 
+anthropic_vars = {k: v for k, v in os.environ.items() if k.startswith('ANTHROPIC')}
+print(f"[INIT] Variables ANTHROPIC: {anthropic_vars if anthropic_vars else '(ninguna)'}")
+
 with app.app_context():
     init_db()
 
