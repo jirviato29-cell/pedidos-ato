@@ -148,7 +148,7 @@ document.getElementById('info-rol').textContent=ROL==='bodega'?'Bodega / Admin':
 
 const TABS={
   asesor:[{id:'nuevo',label:'➕ Nuevo pedido'},{id:'mis',label:'📋 Mis pedidos'}],
-  encargado:[{id:'promotores',label:'👥 Promotores'},{id:'pedidos-enc',label:'📋 Pedidos'},{id:'lista-dia',label:'📌 Lista del día'}],
+  encargado:[{id:'nuevo',label:'➕ Nuevo pedido'},{id:'mis',label:'📋 Mis pedidos'},{id:'equipo',label:'👥 Mi equipo'},{id:'lista-dia',label:'📌 Lista del día'}],
   bodega:[{id:'todos',label:'📋 Todos'},{id:'urgentes',label:'🚨 Pedidos urgentes'},{id:'top',label:'🔁 Me lo piden mucho'},{id:'catalogo',label:'📦 Catálogo'},{id:'historial',label:'✅ Historial'},{id:'usuarios',label:'👤 Usuarios'}]
 };
 
@@ -178,8 +178,7 @@ function activarTab(id){
 function cargarPanel(id){
   if(id==='nuevo') renderNuevo();
   else if(id==='mis') cargarPedidos('mis');
-  else if(id==='promotores') cargarPromotores();
-  else if(id==='pedidos-enc') cargarPedidosEncargado();
+  else if(id==='equipo') cargarEquipo();
   else if(id==='lista-dia') renderListaDia();
   else if(id==='todos') cargarPedidos('todos');
   else if(id==='urgentes') cargarPedidos('urgentes');
@@ -486,94 +485,85 @@ async function enviarCarrito(){
   }
 }
 
-// ── ENCARGADO: PROMOTORES ─────────────────────────────────────────────────────
-async function cargarPromotores(){
-  const p=document.getElementById('panel-promotores');
+// ── ENCARGADO: MI EQUIPO ──────────────────────────────────────────────────────
+const TIPO_CORTO_ENC={urgente:'🚨 Urgente',faltante:'📦 Lo vendí',demanda:'📢 Demanda',sugerido:'📢 Demanda',especial:'⭐ Especial'};
+let _listaDia=[];
+
+async function cargarEquipo(){
+  const p=document.getElementById('panel-equipo');
   p.innerHTML='<div class="empty">Cargando...</div>';
   const [usuarios,pedidos]=await Promise.all([
     fetch('/api/usuarios').then(r=>r.json()),
-    fetch('/api/pedidos').then(r=>r.json())
+    fetch('/api/pedidos?estado=pendiente').then(r=>r.json())
   ]);
-  const hoy=new Date().toISOString().slice(0,10);
   const asesores=usuarios.filter(u=>u.rol==='asesor');
-  if(!asesores.length){p.innerHTML='<div class="empty">No hay promotores en tu tienda</div>';return;}
+  if(!asesores.length){p.innerHTML='<div class="empty">No hay asesores en tu tienda</div>';return;}
+  const hoy=new Date().toISOString().slice(0,10);
   const pedidosHoy=pedidos.filter(ped=>ped.fecha_creacion&&ped.fecha_creacion.slice(0,10)===hoy);
+
   const cards=asesores.map(u=>{
     const inicial=u.nombre.trim().charAt(0).toUpperCase();
-    const count=pedidosHoy.filter(ped=>ped.usuario_id===u.id).length;
-    return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px">
-      <div style="background:#eff3ff;color:#1a2fa8;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0">${inicial}</div>
-      <div style="flex:1;font-weight:600;color:#1a1f36;font-size:14px">${u.nombre}</div>
-      <span style="font-size:12px;font-weight:700;color:${count>0?'#1d4ed8':'#9ca3af'};background:${count>0?'#eff6ff':'#f3f4f6'};padding:3px 10px;border-radius:20px">${count>0?`${count} pedido${count!==1?'s':''} hoy`:'Sin pedidos hoy'}</span>
+    const misPeds=pedidosHoy.filter(ped=>ped.usuario_id===u.id);
+    const count=misPeds.length;
+    const uid=`asesor-${u.id}`;
+    const pedRows=misPeds.map(ped=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #f1f5f9;flex-wrap:nowrap">
+        <span class="badge ${ped.tipo}" style="font-size:10px;padding:1px 6px;flex-shrink:0;white-space:nowrap">${TIPO_CORTO_ENC[ped.tipo]||ped.tipo}</span>
+        <span style="flex:1;font-size:13px;font-weight:600;color:#1a1f36;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ped.producto_nombre}${ped.modelo_marca?' · '+ped.modelo_marca:''}</span>
+        <button class="btn btn-success btn-sm" style="flex-shrink:0;font-size:11px;padding:2px 8px" onclick="aprobarPedidoEquipo(${ped.id},'${ped.producto_nombre.replace(/'/g,"\\'")}','${(ped.modelo_marca||'').replace(/'/g,"\\'")}','${ped.tipo}',this)">✅ Aprobar</button>
+        <button class="btn btn-danger btn-sm" style="flex-shrink:0;font-size:11px;padding:2px 8px" onclick="rechazarPedidoEquipo(${ped.id},this)">❌ Rechazar</button>
+      </div>`).join('');
+    return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+      <div style="padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer" onclick="toggleAsesor('${uid}')">
+        <div style="background:#eff3ff;color:#1a2fa8;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">${inicial}</div>
+        <span style="flex:1;font-weight:600;color:#1a1f36;font-size:14px">${u.nombre}</span>
+        <span style="font-size:12px;font-weight:700;color:${count>0?'#1d4ed8':'#9ca3af'};background:${count>0?'#eff6ff':'#f3f4f6'};padding:2px 10px;border-radius:20px">${count>0?`${count} pendiente${count!==1?'s':''}`:'Al día ✅'}</span>
+        <span style="color:#9ca3af;font-size:12px">${count>0?'▼':''}</span>
+      </div>
+      ${count>0?`<div id="${uid}" style="display:none;padding:0 14px 10px">${pedRows}</div>`:''}
     </div>`;
   }).join('');
   p.innerHTML=`<div style="display:flex;flex-direction:column;gap:6px">${cards}</div>`;
 }
 
-// ── ENCARGADO: PEDIDOS ────────────────────────────────────────────────────────
-const TIPO_CORTO_ENC={urgente:'🚨 Urgente',faltante:'📦 Lo vendí',demanda:'📢 Demanda',sugerido:'📢 Demanda',especial:'⭐ Especial'};
-let _listaDia=[];
-
-async function cargarPedidosEncargado(){
-  const p=document.getElementById('panel-pedidos-enc');
-  p.innerHTML='<div class="empty">Cargando...</div>';
-  const lista=await fetch('/api/pedidos?estado=pendiente').then(r=>r.json());
-  if(!lista.length){p.innerHTML='<div class="empty">No hay pedidos pendientes</div>';return;}
-  p.innerHTML=`
-    <div style="margin-bottom:8px;display:flex;justify-content:flex-end">
-      <button class="btn btn-primary btn-sm" onclick="agregarAListaDia()">📋 Agregar a lista del día</button>
-    </div>
-    <div class="tbl-wrap">
-      <table class="tbl" id="tbl-pedidos-enc">
-        <thead><tr>
-          <th style="width:32px"><input type="checkbox" id="chk-todos" onchange="toggleTodosChk(this)"></th>
-          <th>Tipo</th>
-          <th>Producto</th>
-          <th class="col-hide">Modelo</th>
-        </tr></thead>
-        <tbody>
-          ${lista.map(ped=>`<tr>
-            <td><input type="checkbox" class="chk-ped" data-id="${ped.id}" data-nombre="${ped.producto_nombre.replace(/"/g,'&quot;')}" data-modelo="${(ped.modelo_marca||'').replace(/"/g,'&quot;')}" data-tipo="${ped.tipo}"></td>
-            <td><span class="badge ${ped.tipo}" style="font-size:11px;padding:2px 6px">${TIPO_CORTO_ENC[ped.tipo]||ped.tipo}</span></td>
-            <td style="font-weight:600;color:#1a1f36;font-size:13px">${ped.producto_nombre}</td>
-            <td class="col-hide" style="color:#6b7280;font-size:12px">${ped.modelo_marca||'—'}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>`;
+function toggleAsesor(uid){
+  const el=document.getElementById(uid);
+  if(el) el.style.display=el.style.display==='none'?'block':'none';
 }
 
-function toggleTodosChk(chk){
-  document.querySelectorAll('.chk-ped').forEach(c=>c.checked=chk.checked);
+function aprobarPedidoEquipo(id,nombre,modelo,tipo,btn){
+  if(!_listaDia.find(x=>x.id===id)){
+    _listaDia.push({id,nombre,modelo,tipo});
+  }
+  const fila=btn.closest('div[style*="border-top"]');
+  if(fila) fila.style.opacity='0.4';
+  btn.disabled=true;
+  btn.textContent='✅ En lista';
+  btn.nextElementSibling.disabled=true;
 }
 
-function agregarAListaDia(){
-  const seleccionados=document.querySelectorAll('.chk-ped:checked');
-  if(!seleccionados.length){alert('Selecciona al menos un pedido');return;}
-  seleccionados.forEach(chk=>{
-    const id=parseInt(chk.dataset.id);
-    if(!_listaDia.find(x=>x.id===id)){
-      _listaDia.push({id,nombre:chk.dataset.nombre,modelo:chk.dataset.modelo,tipo:chk.dataset.tipo});
-    }
-  });
-  cargarPanel('lista-dia');
-  document.querySelectorAll('.chk-ped').forEach(c=>c.checked=false);
-  const chkTodos=document.getElementById('chk-todos');
-  if(chkTodos) chkTodos.checked=false;
+async function rechazarPedidoEquipo(id,btn){
+  if(!confirm('¿Eliminar este pedido?')) return;
+  const res=await fetch(`/api/pedidos/${id}`,{method:'DELETE'});
+  const data=await res.json();
+  if(data.ok){
+    const fila=btn.closest('div[style*="border-top"]');
+    if(fila) fila.remove();
+  }
 }
 
 // ── ENCARGADO: LISTA DEL DÍA ──────────────────────────────────────────────────
 function renderListaDia(){
   const p=document.getElementById('panel-lista-dia');
   if(!_listaDia.length){
-    p.innerHTML='<div class="empty">No has agregado pedidos a la lista del día.<br>Ve a "Pedidos" y selecciona los que quieres trabajar hoy.</div>';
+    p.innerHTML='<div class="empty">No hay pedidos aprobados aún.<br>Ve a "Mi equipo" y aprueba los pedidos de tus asesores.</div>';
     return;
   }
   p.innerHTML=`
-    <div style="font-weight:700;color:#1a1f36;font-size:13px;margin-bottom:8px">📌 Lista del día (${_listaDia.length})</div>
+    <div style="font-weight:700;color:#1a1f36;font-size:13px;margin-bottom:8px">📌 Lista del día — ${_listaDia.length} pedido${_listaDia.length!==1?'s':''}</div>
     <div style="display:flex;flex-direction:column;gap:4px">
       ${_listaDia.map((item,i)=>`
-        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px">
+        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:7px 12px;display:flex;align-items:center;gap:8px;flex-wrap:nowrap">
           <span class="badge ${item.tipo}" style="font-size:11px;padding:2px 6px;flex-shrink:0;white-space:nowrap">${TIPO_CORTO_ENC[item.tipo]||item.tipo}</span>
           <span style="flex:1;font-weight:600;color:#1a1f36;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.nombre}${item.modelo?' · '+item.modelo:''}</span>
           <button class="btn btn-sm" style="flex-shrink:0;font-size:11px;padding:2px 8px;background:#f1f5f9;color:#374151;border:1px solid #d1d5db" onclick="quitarDeListaDia(${i})">✕ Quitar</button>
