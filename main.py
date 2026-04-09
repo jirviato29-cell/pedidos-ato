@@ -595,7 +595,9 @@ def analizar_pedido():
         print(f"[IA] Exception: {type(e).__name__}: {e}")
         return jsonify({'ok': False, 'msg': str(e)})
 
-print(f"[INIT] AI_API_KEY presente: {bool(os.environ.get('AI_API_KEY'))}, longitud: {len(os.environ.get('AI_API_KEY', ''))}")
+print("[INIT] Variables de entorno:")
+for k, v in os.environ.items():
+    print(f"  {k}={v}")
 
 with app.app_context():
     init_db()
