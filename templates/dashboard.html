@@ -40,8 +40,7 @@ body{background:#f0f4f8;color:#1a1f36;font-family:'Inter',system-ui,sans-serif;m
 .badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;}
 .badge.urgente{background:#fef2f2;color:#dc2626;}
 .badge.faltante{background:#eff6ff;color:#1d4ed8;}
-.badge.especial{background:#f5f3ff;color:#7c3aed;}
-.badge.sugerido{background:#f0fdf4;color:#16a34a;}
+.badge.demanda{background:#fff7ed;color:#ea580c;}
 .badge.pendiente{background:#eff6ff;color:#1d4ed8;}
 .badge.camino{background:#fff7ed;color:#ea580c;}
 .badge.llego{background:#f0fdf4;color:#16a34a;}
@@ -198,10 +197,9 @@ async function renderNuevo(){
       <div class="section-title">Agregar al pedido</div>
       <label>Tipo</label>
       <select id="np-tipo">
-        <option value="faltante">📋 Faltante / Reposición</option>
-        <option value="especial">⭐ Especial</option>
-        <option value="urgente">🚨 Urgente</option>
-        <option value="sugerido">💡 Sugerido</option>
+        <option value="faltante">📦 Me falta en el módulo — lo vendí</option>
+        <option value="demanda">🔁 Me lo piden mucho y no tengo</option>
+        <option value="urgente">🚨 Pedido urgente</option>
       </select>
       <label>Categoría</label>
       <select id="np-cat" onchange="cargarProductos()">
@@ -312,7 +310,7 @@ function renderCarrito(){
           <div>
             <div style="font-weight:600;color:#1a1f36">${item.producto_nombre}</div>
             <div style="font-size:12px;color:#6b7280;margin-top:3px">
-              <span class="badge ${item.tipo}">${item.tipo}</span>
+              <span class="badge ${item.tipo}">${TIPO_ICON[item.tipo]||''} ${TIPO_LABEL[item.tipo]||item.tipo}</span>
               · ${item.cantidad}
               ${item.modelo_marca?` · ${item.modelo_marca}`:''}
               ${item.nota?` · 📝 ${item.nota}`:''}
@@ -396,7 +394,7 @@ async function cargarAsesores(){
           <tbody>${pedidos.map(ped=>{
             const icon=TIPO_ICON[ped.tipo]||'📋';
             return `<tr>
-              <td><span class="badge ${ped.tipo}">${icon} ${ped.tipo}</span></td>
+              <td><span class="badge ${ped.tipo}">${icon} ${TIPO_LABEL[ped.tipo]||ped.tipo}</span></td>
               <td style="font-weight:600;color:#1a1f36">${ped.producto_nombre}</td>
               <td class="col-hide" style="color:#6b7280">${ped.modelo_marca||'—'}</td>
               <td style="text-align:center;font-weight:600">${ped.cantidad}</td>
@@ -410,8 +408,9 @@ async function cargarAsesores(){
 }
 
 // ── LISTAR PEDIDOS ────────────────────────────────────────────────────────────
-const TIPO_ICON={urgente:'🚨',faltante:'📋',especial:'⭐',sugerido:'💡'};
-const TIPO_COLOR={urgente:'#ff6666',faltante:'#8888ff',especial:'#cc88ff',sugerido:'#44cc88'};
+const TIPO_ICON={urgente:'🚨',faltante:'📦',demanda:'🔁'};
+const TIPO_LABEL={urgente:'Pedido urgente',faltante:'Lo vendí',demanda:'Muy pedido'};
+const TIPO_COLOR={urgente:'#dc2626',faltante:'#1d4ed8',demanda:'#ea580c'};
 
 async function cargarPedidos(modo){
   const p=document.getElementById('panel-'+modo);
@@ -427,10 +426,9 @@ async function cargarPedidos(modo){
     <div class="filtros" style="margin-bottom:12px">
       <select id="f-tipo-${modo}" onchange="filtrarLista('${modo}')">
         <option value="">Todos los tipos</option>
-        <option value="urgente">🚨 Urgente</option>
-        <option value="faltante">📋 Faltante</option>
-        <option value="especial">⭐ Especial</option>
-        <option value="sugerido">💡 Sugerido</option>
+        <option value="urgente">🚨 Pedido urgente</option>
+        <option value="faltante">📦 Me falta en el módulo — lo vendí</option>
+        <option value="demanda">🔁 Me lo piden mucho y no tengo</option>
       </select>
     </div>
     <div id="lista-${modo}">${agrupar?renderTablaAgrupada(lista,modo):renderTablaSimple(lista,modo)}</div>`;
@@ -467,7 +465,7 @@ function renderTablaAgrupada(lista,modo){
           const prod=r.producto_nombre.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
           const mod=(r.modelo_marca||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
           return `<tr>
-            <td><span class="badge ${r.tipo}">${icon} ${r.tipo}</span></td>
+            <td><span class="badge ${r.tipo}">${icon} ${TIPO_LABEL[r.tipo]||r.tipo}</span></td>
             <td style="font-weight:600;color:#1a1f36;max-width:200px">${r.producto_nombre}</td>
             <td class="col-hide" style="color:#6b7280">${r.modelo_marca||'—'}</td>
             <td style="text-align:center;font-weight:700;color:#1a1f36">${r.cantidad_total||r.num_pedidos}</td>
@@ -512,7 +510,7 @@ function renderTablaSimple(lista,modo){
         ${lista.map(ped=>{
           const icon=TIPO_ICON[ped.tipo]||'📋';
           return `<tr>
-            <td><span class="badge ${ped.tipo}">${icon} ${ped.tipo}</span></td>
+            <td><span class="badge ${ped.tipo}">${icon} ${TIPO_LABEL[ped.tipo]||ped.tipo}</span></td>
             <td style="font-weight:600;color:#1a1f36;max-width:180px">${ped.producto_nombre}</td>
             <td class="col-hide" style="color:#6b7280">${ped.modelo_marca||'—'}</td>
             <td style="text-align:center;color:#1a1f36;font-weight:600">${ped.cantidad}</td>
@@ -701,7 +699,7 @@ async function cargarUsuarios(){
             <div style="color:#8888aa;font-size:12px">@${u.usuario} · ${u.tienda}${u.telefono?` · 📱 ${u.telefono}`:''}</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center">
-            <span class="badge ${u.rol==='bodega'?'urgente':u.rol==='encargado'?'especial':'sugerido'}">${u.rol}</span>
+            <span class="badge ${u.rol==='bodega'?'urgente':u.rol==='encargado'?'faltante':'llego'}">${u.rol}</span>
             <button class="btn btn-warn btn-sm" onclick="editarUsuario(${u.id},'${u.nombre.replace(/'/g,"\\'")}','${u.telefono||''}','${u.rol}')">✏️</button>
           </div>
         </div>`).join('')}
