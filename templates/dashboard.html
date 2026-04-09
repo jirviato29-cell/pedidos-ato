@@ -5,117 +5,134 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pedidos ATO</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:#09090f;color:#e2e2f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;min-height:100vh;font-size:14px;line-height:1.5;}
+body{background:#f0f4f8;color:#1a1f36;font-family:'Inter',system-ui,sans-serif;min-height:100vh;font-size:14px;line-height:1.5;}
 
 /* ── TOPBAR ── */
-.topbar{background:#111120;border-bottom:1px solid #1f1f3a;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
-.topbar h1{font-size:17px;font-weight:800;letter-spacing:-.3px;}
-.logout{color:#ff6b6b;font-size:13px;text-decoration:none;margin-left:14px;opacity:.8;transition:opacity .2s;}
-.logout:hover{opacity:1;}
+.topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:10px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 1px 6px rgba(0,0,0,.06);}
+.topbar-left{display:flex;align-items:center;gap:14px;}
+.topbar-logo{height:40px;width:auto;object-fit:contain;}
+.topbar-logo-sm{height:28px;width:auto;object-fit:contain;}
+.topbar-divider{width:1px;height:36px;background:#e2e8f0;}
+.topbar h1{font-size:17px;font-weight:800;color:#1a2fa8;letter-spacing:-.3px;}
+.topbar-rol{font-size:12px;color:#6b7280;display:block;margin-top:1px;font-weight:500;}
+.topbar-right{display:flex;align-items:center;gap:14px;}
+.topbar-user{color:#374151;font-size:13px;font-weight:600;}
+.logout{color:#dc2626;font-size:13px;text-decoration:none;padding:6px 14px;border:1.5px solid #fca5a5;border-radius:7px;font-weight:600;transition:all .15s;}
+.logout:hover{background:#fef2f2;}
 
 /* ── TABS ── */
-.tabs{display:flex;gap:2px;padding:14px 16px 0;overflow-x:auto;border-bottom:1px solid #1f1f3a;scrollbar-width:none;}
+.tabs{display:flex;gap:4px;padding:16px 24px 0;overflow-x:auto;background:#fff;border-bottom:2px solid #e2e8f0;scrollbar-width:none;}
 .tabs::-webkit-scrollbar{display:none;}
-.tab{padding:9px 15px;border-radius:8px 8px 0 0;font-size:13px;font-weight:600;cursor:pointer;color:#6666aa;white-space:nowrap;border:none;background:none;transition:all .15s;}
-.tab:hover:not(.active){color:#aaaacc;background:#ffffff08;}
-.tab.active{background:#111120;color:#7c73ff;border:1px solid #1f1f3a;border-bottom:1px solid #111120;}
+.tab{padding:10px 18px;border-radius:8px 8px 0 0;font-size:13px;font-weight:600;cursor:pointer;color:#6b7280;white-space:nowrap;border:none;background:none;transition:all .15s;}
+.tab:hover:not(.active){color:#1a2fa8;background:#eff3ff;}
+.tab.active{background:#1a2fa8;color:#fff;}
 
 /* ── PANELS ── */
-.panel{display:none;padding:20px 16px;max-width:1200px;margin:0 auto;}
+.panel{display:none;padding:24px;max-width:1200px;margin:0 auto;}
 .panel.active{display:block;}
 
 /* ── CARDS ── */
-.card{background:#111120;border:1px solid #1e1e38;border-radius:14px;padding:18px;margin-bottom:14px;}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.03);}
 
-/* ── BADGES TIPO (grandes, con borde) ── */
-.badge{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:.2px;white-space:nowrap;}
-.badge.urgente{background:#3a1212;color:#ff7070;border:1px solid #5a2020;}
-.badge.faltante{background:#12123a;color:#8a8aff;border:1px solid #20206a;}
-.badge.especial{background:#280f40;color:#cc88ff;border:1px solid #441a6a;}
-.badge.sugerido{background:#0c2a18;color:#4ddd88;border:1px solid #1a4a2a;}
-.badge.pendiente{background:#12123a;color:#8a8aff;border:1px solid #20206a;}
-.badge.camino{background:#2e2000;color:#ffbb33;border:1px solid #4a3600;}
-.badge.llego{background:#0c2a18;color:#4ddd88;border:1px solid #1a4a2a;}
-.badge.bodega{background:#0c1e38;color:#55aaff;border:1px solid #1a3a6a;}
-.badge.no-surtido{background:#3a1212;color:#ff5555;border:1px solid #5a2020;}
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;}
+.badge.urgente{background:#fef2f2;color:#dc2626;}
+.badge.faltante{background:#eff6ff;color:#1d4ed8;}
+.badge.especial{background:#f5f3ff;color:#7c3aed;}
+.badge.sugerido{background:#f0fdf4;color:#16a34a;}
+.badge.pendiente{background:#eff6ff;color:#1d4ed8;}
+.badge.camino{background:#fff7ed;color:#ea580c;}
+.badge.llego{background:#f0fdf4;color:#16a34a;}
+.badge.bodega{background:#ecfeff;color:#0891b2;}
+.badge.no-surtido{background:#fef2f2;color:#dc2626;}
 
 /* ── FORMS ── */
-label{display:block;color:#8888bb;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;margin-top:16px;}
-input,select,textarea{width:100%;background:#09090f;border:1px solid #1e1e38;border-radius:8px;padding:11px 13px;color:#e2e2f0;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s;}
-input:focus,select:focus,textarea:focus{border-color:#6c63ff;box-shadow:0 0 0 3px #6c63ff20;}
-select option{background:#111120;}
+label{display:block;color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;margin-top:16px;}
+input,select,textarea{width:100%;background:#fff;border:1.5px solid #d1d5db;border-radius:8px;padding:10px 13px;color:#1a1f36;font-size:14px;outline:none;font-family:inherit;transition:border-color .2s,box-shadow .2s;}
+input:focus,select:focus,textarea:focus{border-color:#1a2fa8;box-shadow:0 0 0 3px #1a2fa820;}
+select option{background:#fff;color:#1a1f36;}
 textarea{resize:vertical;min-height:70px;}
 
 /* ── BUTTONS ── */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
-.btn-primary{background:#6c63ff;color:#fff;}
-.btn-primary:hover{background:#574fd6;transform:translateY(-1px);}
-.btn-success{background:#0c2a18;color:#4ddd88;border:1px solid #1a4a2a;}
-.btn-success:hover{background:#152f1e;}
-.btn-warn{background:#2a1c00;color:#ffbb33;border:1px solid #443000;}
-.btn-warn:hover{background:#352400;}
-.btn-danger{background:#2a1010;color:#ff6b6b;border:1px solid #441818;}
-.btn-danger:hover{background:#351515;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .15s;font-family:inherit;}
+.btn-primary{background:#1a2fa8;color:#fff;}
+.btn-primary:hover{background:#142285;}
+.btn-success{background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0;}
+.btn-success:hover{background:#dcfce7;}
+.btn-warn{background:#fff7ed;color:#ea580c;border:1.5px solid #fed7aa;}
+.btn-warn:hover{background:#ffedd5;}
+.btn-danger{background:#fef2f2;color:#dc2626;border:1.5px solid #fca5a5;}
+.btn-danger:hover{background:#fee2e2;}
 .btn-sm{padding:6px 12px;font-size:12px;border-radius:6px;}
 
 /* ── DROPDOWN ── */
 .dropdown{position:relative;display:inline-block;}
-.dropdown-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:#181830;border:1px solid #252550;border-radius:10px;min-width:170px;z-index:200;box-shadow:0 10px 32px #00000066;overflow:hidden;}
+.dropdown-menu{display:none;position:absolute;right:0;top:calc(100% + 5px);background:#fff;border:1px solid #e2e8f0;border-radius:10px;min-width:170px;z-index:200;box-shadow:0 4px 24px rgba(0,0,0,.12);overflow:hidden;}
 .dropdown-menu.open{display:block;}
-.dropdown-item{display:flex;align-items:center;gap:8px;width:100%;padding:11px 15px;font-size:13px;font-weight:500;color:#ccccee;background:none;border:none;cursor:pointer;text-align:left;transition:background .1s;white-space:nowrap;}
-.dropdown-item:hover{background:#ffffff0d;}
-.dropdown-item.success{color:#4ddd88;}
-.dropdown-item.warn{color:#ffbb33;}
-.dropdown-item.danger{color:#ff6b6b;}
+.dropdown-item{display:flex;align-items:center;gap:8px;width:100%;padding:11px 15px;font-size:13px;font-weight:500;color:#374151;background:none;border:none;cursor:pointer;text-align:left;transition:background .1s;white-space:nowrap;font-family:inherit;}
+.dropdown-item:hover{background:#f9fafb;}
+.dropdown-item.success{color:#16a34a;}
+.dropdown-item.warn{color:#ea580c;}
+.dropdown-item.danger{color:#dc2626;}
 
 /* ── TABLES ── */
-.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid #1a1a32;}
+.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid #e2e8f0;}
 .tbl{width:100%;border-collapse:collapse;font-size:13px;}
-.tbl thead tr{background:#0d0d1e;}
-.tbl th{padding:11px 14px;text-align:left;color:#6666aa;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #1a1a32;white-space:nowrap;}
+.tbl thead tr{background:#f8fafc;}
+.tbl th{padding:11px 14px;text-align:left;color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #e2e8f0;white-space:nowrap;}
 .tbl th:last-child{text-align:center;}
-.tbl tbody tr{border-bottom:1px solid #141428;transition:background .1s;}
+.tbl tbody tr{border-bottom:1px solid #f1f5f9;transition:background .1s;}
 .tbl tbody tr:last-child{border-bottom:none;}
-.tbl tbody tr:nth-child(odd){background:#09090f;}
-.tbl tbody tr:nth-child(even){background:#0d0d1e;}
-.tbl tbody tr:hover{background:#13132a;}
-.tbl td{padding:13px 14px;vertical-align:middle;}
+.tbl tbody tr:nth-child(odd){background:#fff;}
+.tbl tbody tr:nth-child(even){background:#fafbfc;}
+.tbl tbody tr:hover{background:#eef2ff;}
+.tbl td{padding:13px 14px;vertical-align:middle;color:#374151;}
 
 /* ── MISC ── */
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-.empty{text-align:center;color:#555588;padding:48px 20px;font-size:14px;}
-.alert-ok{background:#0c2a18;border:1px solid #1a4a2a;border-radius:8px;color:#4ddd88;padding:10px 14px;margin-bottom:14px;display:none;font-size:13px;font-weight:600;}
-.section-title{font-size:14px;font-weight:700;color:#8888bb;margin-bottom:14px;letter-spacing:.2px;}
-.top-item{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #1a1a32;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.empty{text-align:center;color:#9ca3af;padding:48px 20px;font-size:14px;}
+.alert-ok{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;color:#15803d;padding:10px 14px;margin-bottom:14px;display:none;font-size:13px;font-weight:600;}
+.section-title{font-size:12px;font-weight:700;color:#6b7280;margin-bottom:14px;text-transform:uppercase;letter-spacing:.8px;}
+.top-item{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;}
 .top-item:last-child{border-bottom:none;}
 .filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
 .filtros select{width:auto;padding:8px 12px;font-size:13px;}
-.check-label{display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;cursor:pointer;color:#8888aa;font-size:13px;font-weight:400;}
+.check-label{display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;cursor:pointer;color:#6b7280;font-size:13px;font-weight:500;}
 .check-label input[type=checkbox]{width:auto;margin:0;}
 
 /* ── MOBILE ── */
 @media(max-width:640px){
-  .panel{padding:14px 10px;}
-  .topbar{padding:12px 14px;}
+  .panel{padding:16px 12px;}
+  .topbar{padding:10px 14px;}
   .topbar h1{font-size:15px;}
+  .topbar-logo{height:30px;}
+  .topbar-logo-sm{height:22px;}
+  .topbar-divider{display:none;}
   .grid2{grid-template-columns:1fr;}
   .col-hide{display:none;}
-  .card{padding:14px;}
+  .card{padding:14px;border-radius:10px;}
   .btn{padding:9px 14px;font-size:13px;}
-  .tab{padding:8px 12px;font-size:12px;}
+  .tab{padding:8px 13px;font-size:12px;}
+  .tabs{padding:12px 12px 0;}
 }
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <div>
-    <h1>📦 Pedidos ATO</h1>
-    <span id="info-rol" style="font-size:12px;color:#8888aa"></span>
+  <div class="topbar-left">
+    <img src="/static/ato.png" alt="ATO" class="topbar-logo" onerror="this.style.display='none'">
+    <div class="topbar-divider"></div>
+    <div>
+      <h1>Pedidos ATO</h1>
+      <span id="info-rol" class="topbar-rol"></span>
+    </div>
   </div>
-  <div>
-    <span id="info-nombre" style="color:#aaaacc;font-size:13px"></span>
+  <div class="topbar-right">
+    <img src="/static/telcel.jpeg" alt="Telcel" class="topbar-logo-sm" onerror="this.style.display='none'">
+    <span id="info-nombre" class="topbar-user"></span>
     <a href="/logout" class="logout">Salir</a>
   </div>
 </div>
@@ -291,11 +308,11 @@ function renderCarrito(){
     <div class="card">
       <div class="section-title">🛒 Pedido actual — ${carrito.length} producto${carrito.length>1?'s':''}</div>
       ${carrito.map((item,i)=>`
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #2a2a4a">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9">
           <div>
-            <div style="font-weight:600">${item.producto_nombre}</div>
-            <div style="font-size:12px;color:#8888aa">
-              <span class="badge ${item.tipo}" style="font-size:10px">${item.tipo}</span>
+            <div style="font-weight:600;color:#1a1f36">${item.producto_nombre}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:3px">
+              <span class="badge ${item.tipo}">${item.tipo}</span>
               · ${item.cantidad}
               ${item.modelo_marca?` · ${item.modelo_marca}`:''}
               ${item.nota?` · 📝 ${item.nota}`:''}
@@ -359,30 +376,31 @@ async function cargarAsesores(){
   });
   p.innerHTML=Object.entries(porAsesor).map(([nombre,pedidos])=>{
     const pendientes=pedidos.filter(x=>x.estado==='pendiente').length;
-    return `<div class="card" style="margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div class="section-title" style="margin:0">👤 ${nombre}</div>
-        <span style="color:#8888aa;font-size:12px">${pedidos.length} pedido${pedidos.length>1?'s':''} · ${pendientes} pendiente${pendientes!==1?'s':''}</span>
+    return `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="background:#eff3ff;color:#1a2fa8;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">👤</span>
+          <span style="font-weight:700;font-size:15px;color:#1a1f36">${nombre}</span>
+        </div>
+        <span style="color:#6b7280;font-size:12px;background:#f3f4f6;padding:4px 10px;border-radius:20px">${pedidos.length} pedido${pedidos.length>1?'s':''} · <span style="color:${pendientes>0?'#dc2626':'#16a34a'}">${pendientes} pendiente${pendientes!==1?'s':''}</span></span>
       </div>
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead><tr style="color:#8888aa;font-size:11px;text-transform:uppercase;letter-spacing:1px">
-            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #2a2a4a">Tipo</th>
-            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #2a2a4a">Producto</th>
-            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #2a2a4a">Modelo</th>
-            <th style="padding:8px 10px;text-align:center;border-bottom:1px solid #2a2a4a">Cant.</th>
-            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #2a2a4a">Estado</th>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr>
+            <th>Tipo</th>
+            <th>Producto</th>
+            <th class="col-hide">Modelo</th>
+            <th style="text-align:center">Cant.</th>
+            <th>Estado</th>
           </tr></thead>
-          <tbody>${pedidos.map((ped,i)=>{
-            const color=TIPO_COLOR[ped.tipo]||'#8888ff';
+          <tbody>${pedidos.map(ped=>{
             const icon=TIPO_ICON[ped.tipo]||'📋';
-            const bg=i%2===0?'#0f0f1a':'#141420';
-            return `<tr style="background:${bg};border-bottom:1px solid #1a1a2a">
-              <td style="padding:8px 10px;white-space:nowrap"><span style="color:${color};font-weight:700;font-size:12px">${icon} ${ped.tipo}</span></td>
-              <td style="padding:8px 10px;font-weight:600;color:#fff">${ped.producto_nombre}</td>
-              <td style="padding:8px 10px;color:#aaaaff">${ped.modelo_marca||'—'}</td>
-              <td style="padding:8px 10px;text-align:center;color:#fff">${ped.cantidad}</td>
-              <td style="padding:8px 10px"><span class="badge ${ped.estado}">${ped.estado}</span></td>
+            return `<tr>
+              <td><span class="badge ${ped.tipo}">${icon} ${ped.tipo}</span></td>
+              <td style="font-weight:600;color:#1a1f36">${ped.producto_nombre}</td>
+              <td class="col-hide" style="color:#6b7280">${ped.modelo_marca||'—'}</td>
+              <td style="text-align:center;font-weight:600">${ped.cantidad}</td>
+              <td><span class="badge ${ped.estado}">${ped.estado}</span></td>
             </tr>`;
           }).join('')}</tbody>
         </table>
@@ -450,17 +468,17 @@ function renderTablaAgrupada(lista,modo){
           const mod=(r.modelo_marca||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
           return `<tr>
             <td><span class="badge ${r.tipo}">${icon} ${r.tipo}</span></td>
-            <td style="font-weight:600;color:#e2e2f0;max-width:200px">${r.producto_nombre}</td>
-            <td class="col-hide" style="color:#9999cc">${r.modelo_marca||'—'}</td>
-            <td style="text-align:center;font-weight:700;color:#e2e2f0">${r.cantidad_total||r.num_pedidos}</td>
+            <td style="font-weight:600;color:#1a1f36;max-width:200px">${r.producto_nombre}</td>
+            <td class="col-hide" style="color:#6b7280">${r.modelo_marca||'—'}</td>
+            <td style="text-align:center;font-weight:700;color:#1a1f36">${r.cantidad_total||r.num_pedidos}</td>
             <td class="col-hide">
               <div style="display:flex;flex-wrap:wrap;gap:4px">
-                ${tiendas.map(t=>`<span style="background:#1a1a35;color:#9999cc;padding:3px 9px;border-radius:20px;font-size:11px;border:1px solid #252550">${t}</span>`).join('')}
+                ${tiendas.map(t=>`<span style="background:#eff3ff;color:#1a2fa8;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600">${t}</span>`).join('')}
               </div>
             </td>
             <td style="text-align:center">
               <div class="dropdown">
-                <button class="btn btn-sm" style="background:#1a1a35;color:#aaaacc;border:1px solid #252550" onclick="toggleDropdown(this)">⋯ Acción</button>
+                <button class="btn btn-sm" style="background:#f3f4f6;color:#374151;border:1px solid #e5e7eb" onclick="toggleDropdown(this)">⋯ Acción</button>
                 <div class="dropdown-menu">
                   <button class="dropdown-item success" onclick="accionMasiva('${prod}','${mod}','${r.tipo}','llego','${modo}')">✅ Surtido</button>
                   <button class="dropdown-item warn" onclick="accionMasiva('${prod}','${mod}','${r.tipo}','bodega','${modo}')">📦 Hay en bodega</button>
@@ -495,10 +513,10 @@ function renderTablaSimple(lista,modo){
           const icon=TIPO_ICON[ped.tipo]||'📋';
           return `<tr>
             <td><span class="badge ${ped.tipo}">${icon} ${ped.tipo}</span></td>
-            <td style="font-weight:600;color:#e2e2f0;max-width:180px">${ped.producto_nombre}</td>
-            <td class="col-hide" style="color:#9999cc">${ped.modelo_marca||'—'}</td>
-            <td style="text-align:center;color:#e2e2f0;font-weight:600">${ped.cantidad}</td>
-            <td class="col-hide" style="color:#7777aa">${ped.tienda}</td>
+            <td style="font-weight:600;color:#1a1f36;max-width:180px">${ped.producto_nombre}</td>
+            <td class="col-hide" style="color:#6b7280">${ped.modelo_marca||'—'}</td>
+            <td style="text-align:center;color:#1a1f36;font-weight:600">${ped.cantidad}</td>
+            <td class="col-hide" style="color:#6b7280">${ped.tienda}</td>
             <td><span class="badge ${ped.estado}">${ped.estado}</span></td>
             <td style="text-align:center;white-space:nowrap">
               ${ROL==='encargado'&&ped.estado==='pendiente'?`<button class="btn btn-success btn-sm" onclick="cambiarEstado(${ped.id},'llego',null,'${modo}')">✅ Ya lo llevé</button>`:''}
