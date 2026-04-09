@@ -163,7 +163,7 @@ def get_pedidos():
                 FROM pedidos p
                 {where_sql}
                 GROUP BY p.producto_nombre, p.modelo_marca, p.tipo
-                ORDER BY CASE p.tipo WHEN 'urgente' THEN 1 WHEN 'faltante' THEN 2 WHEN 'demanda' THEN 3 ELSE 4 END,
+                ORDER BY CASE p.tipo WHEN 'especial' THEN 1 WHEN 'urgente' THEN 2 WHEN 'faltante' THEN 3 WHEN 'demanda' THEN 4 ELSE 5 END,
                          COUNT(DISTINCT p.tienda) DESC, COUNT(*) DESC
             """, grp_params)
             rows = cur.fetchall()
@@ -189,7 +189,7 @@ def get_pedidos():
                 FROM pedidos p
                 LEFT JOIN usuarios u ON p.usuario_id = u.id
                 {where_sql}
-                ORDER BY CASE p.tipo WHEN 'urgente' THEN 1 WHEN 'faltante' THEN 2 WHEN 'demanda' THEN 3 ELSE 4 END,
+                ORDER BY CASE p.tipo WHEN 'especial' THEN 1 WHEN 'urgente' THEN 2 WHEN 'faltante' THEN 3 WHEN 'demanda' THEN 4 ELSE 5 END,
                          p.fecha_creacion DESC
             """, params)
             rows = cur.fetchall()

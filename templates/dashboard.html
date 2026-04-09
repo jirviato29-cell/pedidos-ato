@@ -148,7 +148,7 @@ document.getElementById('info-rol').textContent=ROL==='bodega'?'Bodega / Admin':
 
 const TABS={
   asesor:[{id:'nuevo',label:'➕ Nuevo pedido'},{id:'mis',label:'📋 Mis pedidos'}],
-  encargado:[{id:'nuevo',label:'➕ Nuevo pedido'},{id:'mis',label:'📋 Mis pedidos'},{id:'equipo',label:'👥 Mi equipo'},{id:'lista-dia',label:'📌 Lista del día'}],
+  encargado:[{id:'tienda',label:'📦 Pedidos tienda'},{id:'falta-bodega',label:'⚠️ Falta en bodega'},{id:'mis',label:'📋 Mis pedidos'}],
   bodega:[{id:'todos',label:'📋 Todos'},{id:'urgentes',label:'🚨 Pedidos urgentes'},{id:'top',label:'🔁 Me lo piden mucho'},{id:'catalogo',label:'📦 Catálogo'},{id:'historial',label:'✅ Historial'},{id:'usuarios',label:'👤 Usuarios'}]
 };
 
@@ -178,8 +178,8 @@ function activarTab(id){
 function cargarPanel(id){
   if(id==='nuevo') renderNuevo();
   else if(id==='mis') cargarPedidos('mis');
-  else if(id==='equipo') cargarEquipo();
-  else if(id==='lista-dia') renderListaDia();
+  else if(id==='tienda') renderTienda();
+  else if(id==='falta-bodega') renderFaltaBodega();
   else if(id==='todos') cargarPedidos('todos');
   else if(id==='urgentes') cargarPedidos('urgentes');
   else if(id==='historial') cargarPedidos('historial');
@@ -485,91 +485,147 @@ async function enviarCarrito(){
   }
 }
 
-// ── ENCARGADO: MI EQUIPO ──────────────────────────────────────────────────────
-const TIPO_CORTO_ENC={urgente:'🚨 Urgente',faltante:'📦 Lo vendí',demanda:'📢 Demanda',sugerido:'📢 Demanda',especial:'⭐ Especial'};
-let _listaDia=[];
+// ── ENCARGADO: PEDIDOS TIENDA ─────────────────────────────────────────────────
+const TIPO_CORTO_ENC={urgente:'🚨 Urgente',faltante:'📦 Lo vendí',demanda:'📢 Demanda',sugerido:'📢 Demanda',especial:'⚠️ Falta bodega'};
 
-async function cargarEquipo(){
-  const p=document.getElementById('panel-equipo');
-  p.innerHTML='<div class="empty">Cargando...</div>';
+async function renderTienda(){
+  const p=document.getElementById('panel-tienda');
+  p.innerHTML=`
+    <div class="alert-ok" id="ok-nuevo">✅ Pedido guardado</div>
+    <div class="card" style="border-color:#c7d2fe;background:#f5f7ff">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:20px">✨</span>
+        <div>
+          <div style="font-weight:700;color:#1a2fa8;font-size:14px">¿Qué necesitas pedir hoy?</div>
+          <div style="font-size:12px;color:#6b7280">Pedidos de lo que se vendió en tu tienda</div>
+        </div>
+      </div>
+      <textarea id="ia-texto" placeholder="Describe tu pedido... ej: se me vendió funda iPhone 15" style="min-height:70px;border-color:#c7d2fe"></textarea>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button id="btn-ia" class="btn btn-primary btn-sm" onclick="analizarConIA()">💾 Guardar pedido</button>
+        <span id="ia-estado" style="font-size:13px;color:#6b7280;display:none"></span>
+      </div>
+      <div id="ia-resumen" style="display:none;margin-top:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px">
+        <div style="font-size:13px;font-weight:600;color:#1d4ed8;margin-bottom:8px">¿Por qué lo necesitas?</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-sm" style="background:#fff;border:1.5px solid #bfdbfe;color:#1d4ed8;text-align:left;padding:10px 14px;border-radius:10px;font-size:13px" onclick="confirmarPedidoConTipo('faltante')">📦 Lo vendí y me falta en el módulo</button>
+          <button class="btn btn-sm" style="background:#fff;border:1.5px solid #bfdbfe;color:#1d4ed8;text-align:left;padding:10px 14px;border-radius:10px;font-size:13px" onclick="confirmarPedidoConTipo('demanda')">📢 Me lo piden mucho y no tengo</button>
+          <button class="btn btn-sm" style="background:#fff;border:1.5px solid #bfdbfe;color:#1d4ed8;text-align:left;padding:10px 14px;border-radius:10px;font-size:13px" onclick="confirmarPedidoConTipo('urgente')">🚨 Es urgente, el cliente lo necesita hoy</button>
+        </div>
+      </div>
+    </div>
+    <div id="pedidos-hoy-container"></div>
+    <div id="equipo-tienda"></div>`;
+  cargarPedidosHoy();
+  cargarEquipoEnTienda();
+}
+
+async function cargarEquipoEnTienda(){
+  const c=document.getElementById('equipo-tienda');
+  if(!c) return;
   const [usuarios,pedidos]=await Promise.all([
     fetch('/api/usuarios').then(r=>r.json()),
     fetch('/api/pedidos?estado=pendiente').then(r=>r.json())
   ]);
   const asesores=usuarios.filter(u=>u.rol==='asesor');
-  if(!asesores.length){p.innerHTML='<div class="empty">No hay asesores en tu tienda</div>';return;}
+  if(!asesores.length){c.innerHTML='';return;}
   const hoy=new Date().toISOString().slice(0,10);
-  const pedidosHoy=pedidos.filter(ped=>ped.fecha_creacion&&ped.fecha_creacion.slice(0,10)===hoy);
-
-  const cards=asesores.map(u=>{
-    const inicial=u.nombre.trim().charAt(0).toUpperCase();
-    const misPeds=pedidosHoy.filter(ped=>ped.usuario_id===u.id);
-    const count=misPeds.length;
-    const uid=`asesor-${u.id}`;
-    const pedRows=misPeds.map(ped=>`
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #f1f5f9;flex-wrap:nowrap">
+  const pedidosEquipo=pedidos.filter(p=>p.fecha_creacion&&p.fecha_creacion.slice(0,10)===hoy&&p.solicitante!==NOMBRE);
+  if(!pedidosEquipo.length){c.innerHTML='<div style="color:#9ca3af;font-size:13px;text-align:center;padding:12px">Sin pedidos del equipo hoy</div>';return;}
+  const porAsesor={};
+  pedidosEquipo.forEach(p=>{const n=p.solicitante||'Sin nombre';if(!porAsesor[n])porAsesor[n]=[];porAsesor[n].push(p);});
+  const rows=Object.entries(porAsesor).map(([nombre,peds])=>`
+    <div style="margin-bottom:6px">
+      <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px">${nombre}</div>
+      ${peds.map(ped=>`<div style="display:flex;align-items:center;gap:7px;padding:6px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:7px;margin-bottom:3px">
         <span class="badge ${ped.tipo}" style="font-size:10px;padding:1px 6px;flex-shrink:0;white-space:nowrap">${TIPO_CORTO_ENC[ped.tipo]||ped.tipo}</span>
-        <span style="flex:1;font-size:13px;font-weight:600;color:#1a1f36;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ped.producto_nombre}${ped.modelo_marca?' · '+ped.modelo_marca:''}</span>
-        <button class="btn btn-success btn-sm" style="flex-shrink:0;font-size:11px;padding:2px 8px" onclick="aprobarPedidoEquipo(${ped.id},'${ped.producto_nombre.replace(/'/g,"\\'")}','${(ped.modelo_marca||'').replace(/'/g,"\\'")}','${ped.tipo}',this)">✅ Aprobar</button>
-        <button class="btn btn-danger btn-sm" style="flex-shrink:0;font-size:11px;padding:2px 8px" onclick="rechazarPedidoEquipo(${ped.id},this)">❌ Rechazar</button>
-      </div>`).join('');
-    return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:2px">
-      <div style="padding:10px 14px;display:flex;align-items:center;gap:10px">
-        <div style="background:#eff3ff;color:#1a2fa8;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">${inicial}</div>
-        <span style="flex:1;font-weight:600;color:#1a1f36;font-size:14px">${u.nombre}</span>
-        <span style="font-size:12px;font-weight:700;color:${count>0?'#1d4ed8':'#9ca3af'};background:${count>0?'#eff6ff':'#f3f4f6'};padding:2px 10px;border-radius:20px">${count>0?`${count} pedido${count!==1?'s':''}`:'Sin pedidos hoy ✅'}</span>
-      </div>
-      ${count>0?`<div style="padding:0 14px 10px">${pedRows}</div>`:''}
-    </div>`;
-  }).join('');
-  p.innerHTML=`<div style="display:flex;flex-direction:column;gap:6px">${cards}</div>`;
+        <span style="flex:1;font-size:12px;font-weight:600;color:#1a1f36;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ped.producto_nombre}${ped.modelo_marca?' · '+ped.modelo_marca:''}</span>
+        <button class="btn btn-success btn-sm" style="font-size:10px;padding:2px 7px;flex-shrink:0" onclick="aprobarEquipo(${ped.id},this)">✅ Aprobar</button>
+        <button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 7px;flex-shrink:0" onclick="rechazarEquipo(${ped.id},this)">❌ Rechazar</button>
+      </div>`).join('')}
+    </div>`).join('');
+  c.innerHTML=`<div style="font-weight:700;color:#1a1f36;font-size:13px;margin:14px 0 8px">👥 Pedidos de tu equipo hoy</div>${rows}`;
 }
 
-function aprobarPedidoEquipo(id,nombre,modelo,tipo,btn){
-  if(!_listaDia.find(x=>x.id===id)){
-    _listaDia.push({id,nombre,modelo,tipo});
-  }
-  const fila=btn.closest('div[style*="border-top"]');
-  if(fila){ fila.style.opacity='0.45'; fila.style.pointerEvents='none'; }
-  btn.disabled=true;
+function aprobarEquipo(id,btn){
+  const fila=btn.closest('div[style*="border:1px"]');
+  if(fila){fila.style.opacity='0.4';fila.style.pointerEvents='none';}
   btn.textContent='✅ Aprobado';
-  // Refrescar lista del día si está activa
-  const panelLista=document.getElementById('panel-lista-dia');
-  if(panelLista&&panelLista.classList.contains('active')) renderListaDia();
 }
 
-async function rechazarPedidoEquipo(id,btn){
-  if(!confirm('¿Rechazar este pedido?')) return;
+async function rechazarEquipo(id,btn){
+  if(!confirm('¿Rechazar y eliminar este pedido?')) return;
   const res=await fetch(`/api/pedidos/${id}`,{method:'DELETE'});
   const data=await res.json();
-  if(data.ok){
-    const fila=btn.closest('div[style*="border-top"]');
-    if(fila) fila.remove();
-  }
+  if(data.ok){const fila=btn.closest('div[style*="border:1px"]');if(fila)fila.remove();}
 }
 
-// ── ENCARGADO: LISTA DEL DÍA ──────────────────────────────────────────────────
-function renderListaDia(){
-  const p=document.getElementById('panel-lista-dia');
-  if(!_listaDia.length){
-    p.innerHTML='<div class="empty">No hay pedidos aprobados aún.<br>Ve a "Mi equipo" y aprueba los pedidos de tus asesores.</div>';
-    return;
-  }
+// ── ENCARGADO: FALTA EN BODEGA ────────────────────────────────────────────────
+let _faltaDatos=null;
+
+function renderFaltaBodega(){
+  const p=document.getElementById('panel-falta-bodega');
   p.innerHTML=`
-    <div style="font-weight:700;color:#1a1f36;font-size:13px;margin-bottom:8px">📌 Lista del día — ${_listaDia.length} pedido${_listaDia.length!==1?'s':''}</div>
-    <div style="display:flex;flex-direction:column;gap:4px">
-      ${_listaDia.map((item,i)=>`
-        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:7px 12px;display:flex;align-items:center;gap:8px;flex-wrap:nowrap">
-          <span class="badge ${item.tipo}" style="font-size:11px;padding:2px 6px;flex-shrink:0;white-space:nowrap">${TIPO_CORTO_ENC[item.tipo]||item.tipo}</span>
-          <span style="flex:1;font-weight:600;color:#1a1f36;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.nombre}${item.modelo?' · '+item.modelo:''}</span>
-          <button class="btn btn-sm" style="flex-shrink:0;font-size:11px;padding:2px 8px;background:#f1f5f9;color:#374151;border:1px solid #d1d5db" onclick="quitarDeListaDia(${i})">✕ Quitar</button>
-        </div>`).join('')}
+    <div class="card" style="border-color:#fcd34d;background:#fffbeb">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:20px">⚠️</span>
+        <div>
+          <div style="font-weight:700;color:#92400e;font-size:14px">¿Qué falta en bodega?</div>
+          <div style="font-size:12px;color:#6b7280">Prioridad máxima — bodega lo verá primero</div>
+        </div>
+      </div>
+      <textarea id="falta-texto" placeholder="Ej: fundas iPhone 16 Pro, no hay desde hace 2 semanas..." style="min-height:70px;border-color:#fcd34d"></textarea>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
+        <button id="btn-falta" class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:600" onclick="analizarFaltaBodega()">⚠️ Registrar falta</button>
+        <span id="falta-estado" style="font-size:13px;color:#dc2626;display:none"></span>
+      </div>
+      <div id="falta-resumen" style="display:none;margin-top:12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:14px"></div>
     </div>`;
 }
 
-function quitarDeListaDia(i){
-  _listaDia.splice(i,1);
-  renderListaDia();
+async function analizarFaltaBodega(){
+  const texto=document.getElementById('falta-texto')?.value.trim();
+  if(!texto){alert('Describe qué falta en bodega');return;}
+  const btn=document.getElementById('btn-falta');
+  const estado=document.getElementById('falta-estado');
+  const resumen=document.getElementById('falta-resumen');
+  btn.disabled=true;btn.textContent='⏳ Analizando...';
+  estado.style.display='none';resumen.style.display='none';
+  try{
+    const res=await fetch('/api/analizar-pedido',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({texto})});
+    const data=await res.json();
+    if(!data.ok){estado.textContent='⚠️ '+(data.msg||'Error');estado.style.display='inline';return;}
+    _faltaDatos=data.data;
+    const d=_faltaDatos;
+    resumen.innerHTML=`
+      <div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:6px">Esto es lo que falta:</div>
+      <div style="font-size:13px;color:#78350f;margin-bottom:10px"><strong>${d.producto_nombre}</strong>${d.modelo_marca?' · '+d.modelo_marca:''} — ${d.cantidad}</div>
+      <button class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;padding:7px 16px;border-radius:8px;font-weight:600" onclick="guardarFaltaBodega()">✅ Confirmar registro</button>`;
+    resumen.style.display='block';
+  }catch(e){estado.textContent='⚠️ Error de conexión';estado.style.display='inline';}
+  finally{btn.disabled=false;btn.textContent='⚠️ Registrar falta';}
+}
+
+async function guardarFaltaBodega(){
+  if(!_faltaDatos) return;
+  const d=_faltaDatos;
+  const resumen=document.getElementById('falta-resumen');
+  resumen.innerHTML='<div style="text-align:center;padding:8px;color:#92400e">⏳ Guardando...</div>';
+  try{
+    const res=await fetch('/api/pedidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      tipo:'especial',producto_id:null,
+      producto_nombre:d.producto_nombre||'(sin especificar)',
+      cantidad:d.cantidad||'1',modelo_marca:d.modelo_marca||'',nota:d.nota||''
+    })});
+    const data=await res.json();
+    if(data.ok){
+      resumen.innerHTML='<div style="font-size:14px;font-weight:700;color:#92400e;text-align:center;padding:12px">✅ ¡Registrado! Bodega lo verá primero</div>';
+      document.getElementById('falta-texto').value='';_faltaDatos=null;
+      setTimeout(()=>{resumen.style.display='none';},2500);
+    }else{
+      resumen.innerHTML='<div style="color:#dc2626;text-align:center;padding:8px">⚠️ '+(data.msg||'Error')+'</div>';_faltaDatos=null;
+    }
+  }catch(e){resumen.innerHTML='<div style="color:#dc2626;text-align:center;padding:8px">⚠️ Error de conexión</div>';_faltaDatos=null;}
 }
 
 // ── LISTAR PEDIDOS ────────────────────────────────────────────────────────────
@@ -675,8 +731,12 @@ function renderTablaSimple(lista,modo){
   const showAsesor=ROL==='encargado'&&modo==='mis';
   const esMisPedidosAsesor=ROL==='asesor'&&modo==='mis';
 
-  if(esMisPedidosAsesor){
-    const filtrada=ROL==='encargado'?lista.filter(p=>p.solicitante===NOMBRE):lista;
+  const esMisPedidosEncargado=ROL==='encargado'&&modo==='mis';
+  if(esMisPedidosAsesor||esMisPedidosEncargado){
+    const hoyLocal=new Date().toISOString().slice(0,10);
+    const filtrada=esMisPedidosEncargado
+      ?lista.filter(p=>p.solicitante===NOMBRE&&p.fecha_creacion&&p.fecha_creacion.slice(0,10)===hoyLocal)
+      :lista;
     const sorted=[...filtrada].sort((a,b)=>new Date(b.fecha_creacion)-new Date(a.fecha_creacion));
     const pendientes=sorted.filter(p=>p.estado==='pendiente');
     const resueltos=sorted.filter(p=>['llego','bodega','no-surtido'].includes(p.estado));
