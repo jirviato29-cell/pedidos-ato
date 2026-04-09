@@ -556,10 +556,10 @@ def analizar_pedido():
     texto = (request.json or {}).get('texto', '').strip()
     if not texto:
         return jsonify({'ok': False, 'msg': 'Escribe tu pedido primero'})
-    api_key = os.environ.get('ANTHROPIC_API_KEY')
-    print(f"[IA] ANTHROPIC_API_KEY presente: {bool(api_key)}, longitud: {len(api_key) if api_key else 0}")
+    api_key = os.environ.get('AI_API_KEY')
+    print(f"[IA] AI_API_KEY presente: {bool(api_key)}, longitud: {len(api_key) if api_key else 0}")
     if not api_key:
-        print("[IA] ERROR: ANTHROPIC_API_KEY no está configurada en el entorno")
+        print("[IA] ERROR: AI_API_KEY no está configurada en el entorno")
         return jsonify({'ok': False, 'msg': 'Servicio IA no disponible'})
     try:
         print(f"[IA] Llamando a Anthropic con texto: {texto[:80]}...")
