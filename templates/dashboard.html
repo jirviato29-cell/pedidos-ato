@@ -205,15 +205,15 @@ async function renderNuevo(){
       </div>
       <textarea id="ia-texto" placeholder="Describe tu pedido... ej: necesito urgente una funda para iPad Tablet, se me vendió" style="min-height:80px;border-color:#c7d2fe"></textarea>
       <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <button id="btn-ia" class="btn btn-primary btn-sm" onclick="analizarConIA()">✨ Analizar con IA</button>
+        <button id="btn-ia" class="btn btn-primary btn-sm" onclick="analizarConIA()">💾 Guardar pedido</button>
         <span id="ia-estado" style="font-size:13px;color:#6b7280;display:none"></span>
       </div>
       <div id="ia-resumen" style="display:none;margin-top:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px">
-        <div style="font-size:13px;font-weight:600;color:#1d4ed8;margin-bottom:8px">Esto es lo que detecté:</div>
-        <div id="ia-resumen-body" style="font-size:13px;color:#1e3a8a;margin-bottom:12px"></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-primary btn-sm" onclick="confirmarPedidoIA()">✅ Confirmar pedido</button>
-          <button class="btn btn-sm" style="background:#f1f5f9;color:#374151;border:1px solid #d1d5db" onclick="editarManualmenteIA()">✏️ Editar manualmente</button>
+        <div style="font-size:13px;font-weight:600;color:#1d4ed8;margin-bottom:8px">¿Por qué lo necesitas?</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-sm" style="background:#fff;border:1.5px solid #bfdbfe;color:#1d4ed8;text-align:left;padding:10px 14px;border-radius:10px;font-size:13px" onclick="confirmarPedidoConTipo('faltante')">📦 Lo vendí y me falta en el módulo</button>
+          <button class="btn btn-sm" style="background:#fff;border:1.5px solid #bfdbfe;color:#1d4ed8;text-align:left;padding:10px 14px;border-radius:10px;font-size:13px" onclick="confirmarPedidoConTipo('demanda')">📢 Me lo piden mucho y no tengo</button>
+          <button class="btn btn-sm" style="background:#fff;border:1.5px solid #bfdbfe;color:#1d4ed8;text-align:left;padding:10px 14px;border-radius:10px;font-size:13px" onclick="confirmarPedidoConTipo('urgente')">🚨 Es urgente, el cliente lo necesita hoy</button>
         </div>
       </div>
     </div>
@@ -341,16 +341,6 @@ async function analizarConIA(){
       return;
     }
     _iaDatos=data.data;
-    const d=_iaDatos;
-    const filas=[
-      ['Tipo', TIPO_LABEL[d.tipo]||d.tipo||'—'],
-      ['Producto', d.producto_nombre||'—'],
-      ['Modelo / Marca', d.modelo_marca||'—'],
-      ['Cantidad', d.cantidad||'—']
-    ];
-    document.getElementById('ia-resumen-body').innerHTML=filas.map(([k,v])=>
-      `<div style="display:flex;gap:6px;margin-bottom:4px"><span style="color:#6b7280;min-width:110px">${k}:</span><strong>${v}</strong></div>`
-    ).join('');
     document.getElementById('form-manual').style.display='none';
     resumen.style.display='block';
   }catch(e){
@@ -359,43 +349,38 @@ async function analizarConIA(){
     estado.style.display='inline';
   }finally{
     btn.disabled=false;
-    btn.textContent='✨ Analizar con IA';
+    btn.textContent='💾 Guardar pedido';
   }
 }
 
-function confirmarPedidoIA(){
+async function confirmarPedidoConTipo(tipo){
   if(!_iaDatos) return;
   const d=_iaDatos;
-  carrito.push({
-    tipo: d.tipo||'faltante',
-    producto_id: null,
-    producto_nombre: d.producto_nombre||'(sin especificar)',
-    cantidad: d.cantidad||'1',
-    modelo_marca: d.modelo_marca||'',
-    nota: d.nota||''
-  });
-  _iaDatos=null;
-  document.getElementById('ia-resumen').style.display='none';
-  document.getElementById('ia-texto').value='';
-  document.getElementById('form-manual').style.display='block';
-  renderCarrito();
-}
-
-function editarManualmenteIA(){
-  if(!_iaDatos) return;
-  const d=_iaDatos;
-  document.getElementById('form-manual').style.display='block';
-  document.getElementById('ia-resumen').style.display='none';
-  if(d.tipo) document.getElementById('np-tipo').value=d.tipo;
-  if(d.modelo_marca) document.getElementById('np-modelo').value=d.modelo_marca;
-  if(d.cantidad) document.getElementById('np-cant').value=d.cantidad;
-  if(d.nota) document.getElementById('np-nota').value=d.nota;
-  if(d.producto_nombre){
-    document.getElementById('np-nuevo').checked=true;
-    toggleNuevo();
-    document.getElementById('np-prod-manual').value=d.producto_nombre;
+  const resumen=document.getElementById('ia-resumen');
+  resumen.innerHTML='<div style="font-size:13px;color:#6b7280;text-align:center;padding:8px">⏳ Guardando...</div>';
+  try{
+    const res=await fetch('/api/pedidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      tipo,
+      producto_id: null,
+      producto_nombre: d.producto_nombre||'(sin especificar)',
+      cantidad: d.cantidad||'1',
+      modelo_marca: d.modelo_marca||'',
+      nota: d.nota||''
+    })});
+    const data=await res.json();
+    if(data.ok){
+      resumen.innerHTML='<div style="font-size:15px;font-weight:700;color:#16a34a;text-align:center;padding:12px">✅ ¡Pedido enviado! Bodega lo verá pronto</div>';
+      document.getElementById('ia-texto').value='';
+      _iaDatos=null;
+      setTimeout(()=>{ resumen.style.display='none'; },2500);
+    }else{
+      resumen.innerHTML='<div style="font-size:13px;color:#dc2626;text-align:center;padding:8px">⚠️ '+(data.msg||'Error al guardar')+'</div>';
+      _iaDatos=null;
+    }
+  }catch(e){
+    resumen.innerHTML='<div style="font-size:13px;color:#dc2626;text-align:center;padding:8px">⚠️ Error de conexión</div>';
+    _iaDatos=null;
   }
-  _iaDatos=null;
 }
 
 function renderCarrito(){
