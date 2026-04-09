@@ -1,10 +1,7 @@
 import os
+import re
 import json
-import base64
 import urllib.parse
-import anthropic
-
-ANTHROPIC_API_KEY = "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"
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 import pg8000.dbapi
@@ -559,48 +556,45 @@ def analizar_pedido():
     texto = (request.json or {}).get('texto', '').strip()
     if not texto:
         return jsonify({'ok': False, 'msg': 'Escribe tu pedido primero'})
-    api_key = ANTHROPIC_API_KEY
-    print(f"[IA] AI_API_KEY presente: {bool(api_key)}, longitud: {len(api_key) if api_key else 0}")
-    if not api_key:
-        print("[IA] ERROR: AI_API_KEY no está configurada en el entorno")
-        return jsonify({'ok': False, 'msg': 'Servicio IA no disponible'})
-    try:
-        print(f"[IA] Llamando a Anthropic con texto: {texto[:80]}...")
-        client = anthropic.Anthropic(api_key=api_key)
-        msg = client.messages.create(
-            model='claude-sonnet-4-6',
-            max_tokens=300,
-            system=(
-                'Eres un asistente para una tienda de accesorios de celular en México. '
-                'El asesor describe un pedido con sus propias palabras. '
-                'Extrae la información y responde ÚNICAMENTE con un JSON válido con estos campos exactos:\n'
-                '- "tipo": uno de estos valores exactos: "faltante", "demanda", "urgente"\n'
-                '  (faltante=lo vendió, demanda=lo piden mucho, urgente=necesita rápido)\n'
-                '- "producto_nombre": nombre del producto (string)\n'
-                '- "modelo_marca": modelo o marca específica, vacío si no aplica (string)\n'
-                '- "cantidad": cantidad estimada como texto, ej: "3 piezas" (string)\n'
-                '- "nota": detalle adicional relevante, vacío si no hay (string)\n'
-                'Responde solo el JSON, sin texto adicional, sin markdown.'
-            ),
-            messages=[{'role': 'user', 'content': texto}]
-        )
-        print(f"[IA] Respuesta cruda: {msg.content[0].text}")
-        resultado = json.loads(msg.content[0].text)
-        campos = {'tipo', 'producto_nombre', 'modelo_marca', 'cantidad', 'nota'}
-        if not campos.issubset(resultado.keys()):
-            print(f"[IA] Campos faltantes: {campos - resultado.keys()}")
-            return jsonify({'ok': False, 'msg': 'Respuesta IA incompleta, intenta de nuevo'})
-        return jsonify({'ok': True, 'data': resultado})
-    except json.JSONDecodeError as e:
-        print(f"[IA] JSONDecodeError: {e}")
-        return jsonify({'ok': False, 'msg': 'La IA no devolvió JSON válido, intenta de nuevo'})
-    except Exception as e:
-        print(f"[IA] Exception: {type(e).__name__}: {e}")
-        return jsonify({'ok': False, 'msg': str(e)})
 
-print("[INIT] Variables de entorno:")
-for k, v in os.environ.items():
-    print(f"  {k}={v}")
+    t = texto.lower()
+
+    # Detectar tipo
+    if any(p in t for p in ['urgente', 'necesita hoy', 'para hoy', 'lo necesita hoy', 'urge']):
+        tipo = 'urgente'
+    elif any(p in t for p in ['piden mucho', 'me lo piden', 'no tengo y lo piden', 'mucha demanda']):
+        tipo = 'demanda'
+    else:
+        tipo = 'faltante'  # default: faltante
+
+    # Detectar cantidad (número seguido de palabra)
+    cant_match = re.search(r'(\d+)\s*(pieza|piezas|caja|cajas|unidad|unidades|par|pares)?', t)
+    cantidad = f"{cant_match.group(1)} {cant_match.group(2) or 'piezas'}".strip() if cant_match else '1 pieza'
+
+    # Detectar modelo/marca
+    marcas = ['iphone', 'samsung', 'xiaomi', 'motorola', 'huawei', 'lg', 'ipad', 'tablet']
+    modelo_marca = ''
+    for marca in marcas:
+        if marca in t:
+            idx = t.find(marca)
+            modelo_marca = texto[idx:idx+20].split()[0:2]
+            modelo_marca = ' '.join(modelo_marca)
+            break
+
+    # Producto: texto limpio sin stopwords comunes
+    stopwords = ['necesito', 'urgente', 'me', 'falta', 'vendí', 'vendi', 'el', 'la', 'un', 'una',
+                 'para', 'de', 'del', 'que', 'y', 'en', 'se', 'lo', 'piden', 'mucho', 'no', 'tengo',
+                 'quiero', 'pedir', 'pedido', 'módulo', 'modulo', 'tienda', 'por', 'favor', 'hoy']
+    palabras = [p for p in texto.split() if p.lower() not in stopwords and len(p) > 2]
+    producto_nombre = ' '.join(palabras[:5]) if palabras else texto[:40]
+
+    return jsonify({'ok': True, 'data': {
+        'tipo': tipo,
+        'producto_nombre': producto_nombre,
+        'modelo_marca': modelo_marca,
+        'cantidad': cantidad,
+        'nota': ''
+    }})
 
 with app.app_context():
     init_db()
