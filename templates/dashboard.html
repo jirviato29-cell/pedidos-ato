@@ -41,6 +41,8 @@ body{background:#f0f4f8;color:#1a1f36;font-family:'Inter',system-ui,sans-serif;m
 .badge.urgente{background:#fef2f2;color:#dc2626;}
 .badge.faltante{background:#eff6ff;color:#1d4ed8;}
 .badge.demanda{background:#fff7ed;color:#ea580c;}
+.badge.especial{background:#f5f3ff;color:#7c3aed;}
+.badge.sugerido{background:#fff7ed;color:#ea580c;}
 .badge.pendiente{background:#eff6ff;color:#1d4ed8;}
 .badge.camino{background:#fff7ed;color:#ea580c;}
 .badge.llego{background:#f0fdf4;color:#16a34a;}
@@ -408,9 +410,15 @@ async function cargarAsesores(){
 }
 
 // ── LISTAR PEDIDOS ────────────────────────────────────────────────────────────
-const TIPO_ICON={urgente:'🚨',faltante:'📦',demanda:'🔁'};
-const TIPO_LABEL={urgente:'Pedido urgente',faltante:'Lo vendí',demanda:'Muy pedido'};
-const TIPO_COLOR={urgente:'#dc2626',faltante:'#1d4ed8',demanda:'#ea580c'};
+const TIPO_ICON={urgente:'🚨',faltante:'📦',demanda:'🔁',especial:'⭐',sugerido:'🔁'};
+const TIPO_LABEL={
+  urgente: 'Pedido urgente',
+  faltante:'Me falta en el módulo — lo vendí',
+  demanda: 'Me lo piden mucho y no tengo',
+  especial:'Pedido especial',
+  sugerido:'Me lo piden mucho y no tengo'
+};
+const TIPO_COLOR={urgente:'#dc2626',faltante:'#1d4ed8',demanda:'#ea580c',especial:'#7c3aed',sugerido:'#ea580c'};
 
 async function cargarPedidos(modo){
   const p=document.getElementById('panel-'+modo);
