@@ -557,9 +557,12 @@ def analizar_pedido():
     if not texto:
         return jsonify({'ok': False, 'msg': 'Escribe tu pedido primero'})
     api_key = os.environ.get('ANTHROPIC_API_KEY')
+    print(f"[IA] ANTHROPIC_API_KEY presente: {bool(api_key)}, longitud: {len(api_key) if api_key else 0}")
     if not api_key:
+        print("[IA] ERROR: ANTHROPIC_API_KEY no está configurada en el entorno")
         return jsonify({'ok': False, 'msg': 'Servicio IA no disponible'})
     try:
+        print(f"[IA] Llamando a Anthropic con texto: {texto[:80]}...")
         client = anthropic.Anthropic(api_key=api_key)
         msg = client.messages.create(
             model='claude-sonnet-4-6',
@@ -578,14 +581,18 @@ def analizar_pedido():
             ),
             messages=[{'role': 'user', 'content': texto}]
         )
+        print(f"[IA] Respuesta cruda: {msg.content[0].text}")
         resultado = json.loads(msg.content[0].text)
         campos = {'tipo', 'producto_nombre', 'modelo_marca', 'cantidad', 'nota'}
         if not campos.issubset(resultado.keys()):
+            print(f"[IA] Campos faltantes: {campos - resultado.keys()}")
             return jsonify({'ok': False, 'msg': 'Respuesta IA incompleta, intenta de nuevo'})
         return jsonify({'ok': True, 'data': resultado})
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        print(f"[IA] JSONDecodeError: {e}")
         return jsonify({'ok': False, 'msg': 'La IA no devolvió JSON válido, intenta de nuevo'})
     except Exception as e:
+        print(f"[IA] Exception: {type(e).__name__}: {e}")
         return jsonify({'ok': False, 'msg': str(e)})
 
 with app.app_context():
