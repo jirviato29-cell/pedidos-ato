@@ -2,6 +2,11 @@ import os
 import json
 import urllib.parse
 import anthropic
+try:
+    import config as _config
+    os.environ.setdefault('AI_API_KEY', _config.ANTHROPIC_API_KEY)
+except ImportError:
+    pass
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 import pg8000.dbapi
