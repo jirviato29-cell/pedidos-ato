@@ -424,21 +424,59 @@ async function cargarAsesores(){
   p.innerHTML='<div class="empty">Cargando...</div>';
   const lista=await fetch('/api/pedidos?').then(r=>r.json());
   if(!lista.length){p.innerHTML='<div class="empty">No hay pedidos en tu tienda</div>';return;}
+
+  // Agrupar por asesor
   const porAsesor={};
   lista.forEach(ped=>{
     const nombre=ped.solicitante||'Sin nombre';
     if(!porAsesor[nombre]) porAsesor[nombre]=[];
     porAsesor[nombre].push(ped);
   });
-  p.innerHTML=Object.entries(porAsesor).map(([nombre,pedidos])=>{
-    const pendientes=pedidos.filter(x=>x.estado==='pendiente').length;
-    return `<div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="background:#eff3ff;color:#1a2fa8;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">👤</span>
-          <span style="font-weight:700;font-size:15px;color:#1a1f36">${nombre}</span>
+
+  // Stats globales
+  const totalPendientes=lista.filter(x=>x.estado==='pendiente').length;
+  const totalAsesores=Object.keys(porAsesor).length;
+
+  // Ordenar: más pendientes primero
+  const ordenados=Object.entries(porAsesor).sort(([,a],[,b])=>
+    b.filter(x=>x.estado==='pendiente').length - a.filter(x=>x.estado==='pendiente').length
+  );
+
+  const resumen=`
+    <div class="card" style="background:linear-gradient(135deg,#1a2fa8 0%,#2a4fd4 100%);border:none;margin-bottom:16px">
+      <div style="display:flex;gap:32px;flex-wrap:wrap">
+        <div style="color:#fff">
+          <div style="font-size:30px;font-weight:800;line-height:1">${totalPendientes}</div>
+          <div style="font-size:12px;opacity:.75;margin-top:4px">pedidos pendientes</div>
         </div>
-        <span style="color:#6b7280;font-size:12px;background:#f3f4f6;padding:4px 10px;border-radius:20px">${pedidos.length} pedido${pedidos.length>1?'s':''} · <span style="color:${pendientes>0?'#dc2626':'#16a34a'}">${pendientes} pendiente${pendientes!==1?'s':''}</span></span>
+        <div style="color:#fff">
+          <div style="font-size:30px;font-weight:800;line-height:1">${lista.length}</div>
+          <div style="font-size:12px;opacity:.75;margin-top:4px">pedidos totales</div>
+        </div>
+        <div style="color:#fff">
+          <div style="font-size:30px;font-weight:800;line-height:1">${totalAsesores}</div>
+          <div style="font-size:12px;opacity:.75;margin-top:4px">asesore${totalAsesores!==1?'s':''}</div>
+        </div>
+      </div>
+    </div>`;
+
+  const cards=ordenados.map(([nombre,pedidos])=>{
+    const pendientes=pedidos.filter(x=>x.estado==='pendiente').length;
+    const pColor=pendientes===0?'#16a34a':pendientes<=2?'#ea580c':'#dc2626';
+    const pBg=pendientes===0?'#f0fdf4':pendientes<=2?'#fff7ed':'#fef2f2';
+    const inicial=nombre.trim().charAt(0).toUpperCase();
+    return `<div class="card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="background:#eff3ff;color:#1a2fa8;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex-shrink:0;border:2px solid #c7d2fe">${inicial}</div>
+          <div>
+            <div style="font-weight:700;font-size:15px;color:#1a1f36">${nombre}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">${pedidos.length} pedido${pedidos.length!==1?'s':''} en total</div>
+          </div>
+        </div>
+        <span style="background:${pBg};color:${pColor};padding:7px 16px;border-radius:20px;font-size:13px;font-weight:700;white-space:nowrap">
+          ${pendientes === 0 ? '✅ Al día' : `🕐 ${pendientes} pendiente${pendientes!==1?'s':''}`}
+        </span>
       </div>
       <div class="tbl-wrap">
         <table class="tbl">
@@ -448,21 +486,33 @@ async function cargarAsesores(){
             <th class="col-hide">Modelo</th>
             <th style="text-align:center">Cant.</th>
             <th>Estado</th>
+            <th style="text-align:center">Acción</th>
           </tr></thead>
           <tbody>${pedidos.map(ped=>{
             const icon=TIPO_ICON[ped.tipo]||'📋';
             return `<tr>
               <td><span class="badge ${ped.tipo}">${icon} ${TIPO_LABEL[ped.tipo]||ped.tipo}</span></td>
-              <td style="font-weight:600;color:#1a1f36">${ped.producto_nombre}</td>
+              <td>
+                <div style="font-weight:600;color:#1a1f36">${ped.producto_nombre}</div>
+                ${ped.modelo_marca?`<div style="font-size:11px;color:#6b7280;margin-top:1px">${ped.modelo_marca}</div>`:''}
+                ${ped.nota?`<div style="font-size:11px;color:#9ca3af;margin-top:1px">📝 ${ped.nota}</div>`:''}
+              </td>
               <td class="col-hide" style="color:#6b7280">${ped.modelo_marca||'—'}</td>
-              <td style="text-align:center;font-weight:600">${ped.cantidad}</td>
+              <td style="text-align:center;font-weight:700;color:#1a1f36">${ped.cantidad}</td>
               <td><span class="badge ${ped.estado}">${ped.estado}</span></td>
+              <td style="text-align:center">
+                ${ped.estado==='pendiente'
+                  ?`<button class="btn btn-success btn-sm" onclick="cambiarEstado(${ped.id},'llego',null,'asesores')">✅ Recibido</button>`
+                  :'<span style="color:#9ca3af;font-size:12px">—</span>'}
+              </td>
             </tr>`;
           }).join('')}</tbody>
         </table>
       </div>
     </div>`;
   }).join('');
+
+  p.innerHTML=resumen+cards;
 }
 
 // ── LISTAR PEDIDOS ────────────────────────────────────────────────────────────
@@ -559,6 +609,7 @@ function renderTablaAgrupada(lista,modo){
 
 function renderTablaSimple(lista,modo){
   if(!lista.length) return '<div class="empty">No hay pedidos aquí</div>';
+  const showAsesor=ROL==='encargado'&&modo==='mis';
   return `<div class="tbl-wrap">
     <table class="tbl">
       <thead>
@@ -567,7 +618,7 @@ function renderTablaSimple(lista,modo){
           <th>Producto</th>
           <th class="col-hide">Modelo</th>
           <th style="text-align:center">Cant.</th>
-          <th class="col-hide">Tienda</th>
+          ${showAsesor?'<th>Asesor</th>':'<th class="col-hide">Tienda</th>'}
           <th>Estado</th>
           <th style="text-align:center">Acción</th>
         </tr>
@@ -575,12 +626,21 @@ function renderTablaSimple(lista,modo){
       <tbody>
         ${lista.map(ped=>{
           const icon=TIPO_ICON[ped.tipo]||'📋';
+          const inicial=(ped.solicitante||'?').trim().charAt(0).toUpperCase();
           return `<tr>
             <td><span class="badge ${ped.tipo}">${icon} ${TIPO_LABEL[ped.tipo]||ped.tipo}</span></td>
-            <td style="font-weight:600;color:#1a1f36;max-width:180px">${ped.producto_nombre}</td>
+            <td style="max-width:180px">
+              <div style="font-weight:600;color:#1a1f36">${ped.producto_nombre}</div>
+              ${ped.nota?`<div style="font-size:11px;color:#9ca3af;margin-top:1px">📝 ${ped.nota}</div>`:''}
+            </td>
             <td class="col-hide" style="color:#6b7280">${ped.modelo_marca||'—'}</td>
             <td style="text-align:center;color:#1a1f36;font-weight:600">${ped.cantidad}</td>
-            <td class="col-hide" style="color:#6b7280">${ped.tienda}</td>
+            ${showAsesor?`<td>
+              <div style="display:flex;align-items:center;gap:7px">
+                <div style="background:#eff3ff;color:#1a2fa8;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;flex-shrink:0">${inicial}</div>
+                <span style="font-size:13px;color:#374151;font-weight:600">${ped.solicitante||'—'}</span>
+              </div>
+            </td>`:`<td class="col-hide" style="color:#6b7280">${ped.tienda}</td>`}
             <td><span class="badge ${ped.estado}">${ped.estado}</span></td>
             <td style="text-align:center;white-space:nowrap">
               ${ROL==='encargado'&&ped.estado==='pendiente'?`<button class="btn btn-success btn-sm" onclick="cambiarEstado(${ped.id},'llego',null,'${modo}')">✅ Ya lo llevé</button>`:''}
