@@ -697,12 +697,13 @@ function renderTablaSimple(lista,modo){
       const estadoLabel=ESTADO_LABEL[ped.estado]||null;
       const estadoColor=ESTADO_COLOR[ped.estado]||'#6b7280';
       const estadoBg=ESTADO_BG[ped.estado]||'#f3f4f6';
-      return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:7px 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span style="font-size:11px;color:#9ca3af;white-space:nowrap;flex-shrink:0">${fmtSoloFecha(ped.fecha_creacion)}</span>
-        <span style="font-size:12px;font-weight:600;color:#1a1f36;flex:1;min-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ped.producto_nombre}${ped.modelo_marca?' · '+ped.modelo_marca:''}</span>
-        <span class="badge ${ped.tipo}" style="font-size:11px;padding:2px 7px;flex-shrink:0;white-space:nowrap">${TIPO_CORTO[ped.tipo]||ped.tipo}</span>
-        ${estadoLabel?`<span style="font-size:11px;font-weight:600;color:${estadoColor};background:${estadoBg};padding:2px 7px;border-radius:20px;flex-shrink:0;white-space:nowrap">${estadoLabel}</span>`:''}
-        ${accion}
+      return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px">
+        <div style="font-weight:700;color:#1a1f36;font-size:14px;margin-bottom:6px">${ped.producto_nombre}${ped.modelo_marca?' · '+ped.modelo_marca:''}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span class="badge ${ped.tipo}" style="font-size:11px;padding:2px 7px;white-space:nowrap">${TIPO_CORTO[ped.tipo]||ped.tipo}</span>
+          ${estadoLabel?`<span style="font-size:11px;font-weight:600;color:${estadoColor};background:${estadoBg};padding:2px 7px;border-radius:20px;white-space:nowrap">${estadoLabel}</span>`:''}
+          ${accion}
+        </div>
       </div>`;
     };
     const seccion=(titulo,items,getAccion)=>items.length?`
