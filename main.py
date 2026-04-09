@@ -4,7 +4,7 @@ import base64
 import urllib.parse
 import anthropic
 
-ANTHROPIC_API_KEY = "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"
+ANTHROPIC_API_KEY = "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"
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 import pg8000.dbapi
