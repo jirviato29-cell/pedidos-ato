@@ -195,6 +195,21 @@ async function renderNuevo(){
   const cats=await fetch('/api/categorias').then(r=>r.json());
   p.innerHTML=`
     <div class="alert-ok" id="ok-nuevo">✅ Pedidos enviados correctamente</div>
+    <div class="card" style="border-color:#c7d2fe;background:#f5f7ff">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:20px">✨</span>
+        <div>
+          <div style="font-weight:700;color:#1a2fa8;font-size:14px">Asistente IA</div>
+          <div style="font-size:12px;color:#6b7280">Describe el pedido con tus palabras y lo llenamos automáticamente</div>
+        </div>
+      </div>
+      <textarea id="ia-texto" placeholder="Describe tu pedido... ej: necesito urgente una funda para iPad Tablet, se me vendió" style="min-height:80px;border-color:#c7d2fe"></textarea>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button id="btn-ia" class="btn btn-primary btn-sm" onclick="analizarConIA()">✨ Analizar con IA</button>
+        <span id="ia-estado" style="font-size:13px;color:#6b7280;display:none"></span>
+      </div>
+      <div id="ia-resultado" style="display:none;margin-top:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;font-size:13px;color:#1d4ed8"></div>
+    </div>
     <div class="card">
       <div class="section-title">Agregar al pedido</div>
       <label>Tipo</label>
@@ -295,6 +310,47 @@ function agregarAlCarrito(){
   document.getElementById('np-nota').value='';
   if(document.getElementById('np-prod-manual')) document.getElementById('np-prod-manual').value='';
   renderCarrito();
+}
+
+async function analizarConIA(){
+  const texto=document.getElementById('ia-texto')?.value.trim();
+  if(!texto){alert('Escribe tu pedido primero');return;}
+  const btn=document.getElementById('btn-ia');
+  const estado=document.getElementById('ia-estado');
+  const resultado=document.getElementById('ia-resultado');
+  btn.disabled=true;
+  btn.textContent='⏳ Analizando...';
+  estado.style.display='none';
+  resultado.style.display='none';
+  try{
+    const res=await fetch('/api/ia/analizar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({texto})});
+    const data=await res.json();
+    if(!data.ok){
+      estado.textContent='⚠️ '+( data.msg||'Error al analizar');
+      estado.style.color='#dc2626';
+      estado.style.display='inline';
+      return;
+    }
+    const d=data.data;
+    if(d.tipo) document.getElementById('np-tipo').value=d.tipo;
+    if(d.modelo_marca) document.getElementById('np-modelo').value=d.modelo_marca;
+    if(d.cantidad) document.getElementById('np-cant').value=d.cantidad;
+    if(d.nota) document.getElementById('np-nota').value=d.nota;
+    if(d.producto_nombre){
+      document.getElementById('np-nuevo').checked=true;
+      toggleNuevo();
+      document.getElementById('np-prod-manual').value=d.producto_nombre;
+    }
+    resultado.style.display='block';
+    resultado.innerHTML=`✅ <strong>${TIPO_LABEL[d.tipo]||d.tipo}</strong>: ${d.producto_nombre||'—'}${d.modelo_marca?' · '+d.modelo_marca:''}${d.cantidad?' · '+d.cantidad:''} — Revisa los campos y ajusta si es necesario.`;
+  }catch(e){
+    estado.textContent='⚠️ Error de conexión';
+    estado.style.color='#dc2626';
+    estado.style.display='inline';
+  }finally{
+    btn.disabled=false;
+    btn.textContent='✨ Analizar con IA';
+  }
 }
 
 function renderCarrito(){
