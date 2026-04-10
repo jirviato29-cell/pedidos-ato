@@ -574,57 +574,99 @@ function renderFaltaBodega(){
           <div style="font-size:12px;color:#6b7280">Prioridad máxima — bodega lo verá primero</div>
         </div>
       </div>
-      <textarea id="falta-texto" placeholder="Ej: fundas iPhone 16 Pro, no hay desde hace 2 semanas..." style="min-height:70px;border-color:#fcd34d"></textarea>
+      <div id="falta-renglones" style="display:flex;flex-direction:column;gap:6px"></div>
+      <button onclick="agregarRenglonFalta()" style="margin-top:8px;background:none;border:1px dashed #fcd34d;color:#92400e;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600;width:100%">+ Agregar otro producto</button>
       <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
         <button id="btn-falta" class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:600" onclick="analizarFaltaBodega()">⚠️ Registrar falta</button>
         <span id="falta-estado" style="font-size:13px;color:#dc2626;display:none"></span>
       </div>
       <div id="falta-resumen" style="display:none;margin-top:12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:14px"></div>
     </div>`;
+  agregarRenglonFalta();
+}
+
+function agregarRenglonFalta(){
+  const contenedor=document.getElementById('falta-renglones');
+  if(!contenedor) return;
+  const idx=contenedor.children.length;
+  const row=document.createElement('div');
+  row.style.cssText='display:flex;align-items:center;gap:6px';
+  row.dataset.renglon=idx;
+  row.innerHTML=`<input type="text" class="falta-input" placeholder="Ej: fundas iPhone 16 Pro..." style="flex:1;border:1px solid #fcd34d;border-radius:8px;padding:7px 10px;font-size:13px;background:#fff;outline:none">
+    <button onclick="eliminarRenglonFalta(this)" style="background:none;border:1px solid #fcd34d;color:#b45309;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center">✕</button>`;
+  contenedor.appendChild(row);
+  actualizarBotonesEliminarFalta();
+  row.querySelector('input').focus();
+}
+
+function eliminarRenglonFalta(btn){
+  const contenedor=document.getElementById('falta-renglones');
+  if(contenedor.children.length<=1) return;
+  btn.closest('[data-renglon]').remove();
+  actualizarBotonesEliminarFalta();
+}
+
+function actualizarBotonesEliminarFalta(){
+  const contenedor=document.getElementById('falta-renglones');
+  if(!contenedor) return;
+  const btns=contenedor.querySelectorAll('button');
+  btns.forEach(b=>b.style.visibility=contenedor.children.length<=1?'hidden':'visible');
 }
 
 async function analizarFaltaBodega(){
-  const texto=document.getElementById('falta-texto')?.value.trim();
-  if(!texto){alert('Describe qué falta en bodega');return;}
+  const inputs=[...document.querySelectorAll('.falta-input')].map(i=>i.value.trim()).filter(Boolean);
+  if(!inputs.length){alert('Describe qué falta en bodega');return;}
   const btn=document.getElementById('btn-falta');
   const estado=document.getElementById('falta-estado');
   const resumen=document.getElementById('falta-resumen');
   btn.disabled=true;btn.textContent='⏳ Analizando...';
   estado.style.display='none';resumen.style.display='none';
   try{
-    const res=await fetch('/api/analizar-pedido',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({texto})});
-    const data=await res.json();
-    if(!data.ok){estado.textContent='⚠️ '+(data.msg||'Error');estado.style.display='inline';return;}
-    _faltaDatos=data.data;
-    const d=_faltaDatos;
+    const resultados=await Promise.all(inputs.map(texto=>
+      fetch('/api/analizar-pedido',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({texto})}).then(r=>r.json())
+    ));
+    const errores=resultados.filter(r=>!r.ok);
+    if(errores.length){estado.textContent='⚠️ '+(errores[0].msg||'Error al analizar');estado.style.display='inline';return;}
+    _faltaDatos=resultados.map(r=>r.data);
+    const filas=_faltaDatos.map((d,i)=>`
+      <div style="display:flex;align-items:baseline;gap:6px;padding:4px 0;border-bottom:1px solid #fde68a">
+        <span style="font-size:11px;color:#b45309;font-weight:700;min-width:16px">${i+1}.</span>
+        <span style="font-size:13px;color:#78350f"><strong>${d.producto_nombre}</strong>${d.modelo_marca?' · '+d.modelo_marca:''} — ${d.cantidad}</span>
+      </div>`).join('');
     resumen.innerHTML=`
-      <div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:6px">Esto es lo que falta:</div>
-      <div style="font-size:13px;color:#78350f;margin-bottom:10px"><strong>${d.producto_nombre}</strong>${d.modelo_marca?' · '+d.modelo_marca:''} — ${d.cantidad}</div>
-      <button class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;padding:7px 16px;border-radius:8px;font-weight:600" onclick="guardarFaltaBodega()">✅ Confirmar registro</button>`;
+      <div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:8px">Esto es lo que falta (${_faltaDatos.length} producto${_faltaDatos.length>1?'s':''}):</div>
+      ${filas}
+      <div style="margin-top:10px">
+        <button class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;padding:7px 16px;border-radius:8px;font-weight:600" onclick="guardarFaltaBodega()">✅ Confirmar registro</button>
+      </div>`;
     resumen.style.display='block';
   }catch(e){estado.textContent='⚠️ Error de conexión';estado.style.display='inline';}
   finally{btn.disabled=false;btn.textContent='⚠️ Registrar falta';}
 }
 
 async function guardarFaltaBodega(){
-  if(!_faltaDatos) return;
-  const d=_faltaDatos;
+  if(!_faltaDatos||!_faltaDatos.length) return;
   const resumen=document.getElementById('falta-resumen');
   resumen.innerHTML='<div style="text-align:center;padding:8px;color:#92400e">⏳ Guardando...</div>';
   try{
-    const res=await fetch('/api/pedidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      tipo:'especial',producto_id:null,
-      producto_nombre:d.producto_nombre||'(sin especificar)',
-      cantidad:d.cantidad||'1',modelo_marca:d.modelo_marca||'',nota:d.nota||''
-    })});
-    const data=await res.json();
-    if(data.ok){
-      resumen.innerHTML='<div style="font-size:14px;font-weight:700;color:#92400e;text-align:center;padding:12px">✅ ¡Registrado! Bodega lo verá primero</div>';
-      document.getElementById('falta-texto').value='';_faltaDatos=null;
-      setTimeout(()=>{resumen.style.display='none';},2500);
-    }else{
-      resumen.innerHTML='<div style="color:#dc2626;text-align:center;padding:8px">⚠️ '+(data.msg||'Error')+'</div>';_faltaDatos=null;
+    const resultados=await Promise.all(_faltaDatos.map(d=>
+      fetch('/api/pedidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        tipo:'especial',producto_id:null,
+        producto_nombre:d.producto_nombre||'(sin especificar)',
+        cantidad:d.cantidad||'1',modelo_marca:d.modelo_marca||'',nota:d.nota||''
+      })}).then(r=>r.json())
+    ));
+    const errores=resultados.filter(r=>!r.ok);
+    if(errores.length){
+      resumen.innerHTML=`<div style="color:#dc2626;text-align:center;padding:8px">⚠️ ${errores.length} registro(s) fallaron</div>`;
+      _faltaDatos=null;return;
     }
+    const n=resultados.length;
+    resumen.innerHTML=`<div style="font-size:14px;font-weight:700;color:#92400e;text-align:center;padding:12px">✅ ${n} producto${n>1?'s':''} registrado${n>1?'s':''}. Bodega lo verá primero</div>`;
+    document.querySelectorAll('.falta-input').forEach(i=>i.value='');
+    _faltaDatos=null;
+    cargarPedidosHoy();
+    setTimeout(()=>{resumen.style.display='none';},2800);
   }catch(e){resumen.innerHTML='<div style="color:#dc2626;text-align:center;padding:8px">⚠️ Error de conexión</div>';_faltaDatos=null;}
 }
 
