@@ -490,10 +490,14 @@ async function enviarCarrito(){
 // ── ENCARGADO: PEDIDOS TIENDA ─────────────────────────────────────────────────
 const TIPO_CORTO_ENC={urgente:'🚨 Urgente',faltante:'📦 Lo vendí',demanda:'📢 Demanda',sugerido:'📢 Demanda',especial:'⚠️ Falta bodega'};
 
-let _pedidoDia=[];   // {texto, tipo}
+// Estado del pedido del día del encargado — se usa como window property para
+// que los handlers inline siempre accedan a la misma referencia
+window._pedidoDia = window._pedidoDia || [];
+window._asesorDataMap = window._asesorDataMap || {};  // id → {texto, tipo}
 
 async function renderTienda(){
-  _pedidoDia=[];
+  window._pedidoDia = [];
+  window._asesorDataMap = {};
   const p=document.getElementById('panel-tienda');
   p.innerHTML=`
     <div id="sec-asesores" style="margin-bottom:16px"></div>
@@ -501,7 +505,8 @@ async function renderTienda(){
       <div style="font-weight:700;color:#1a2fa8;font-size:14px;margin-bottom:10px">📦 Pedido del día</div>
       <div id="pedido-dia-lista" style="margin-bottom:8px"></div>
       <div style="display:flex;gap:6px">
-        <input id="pedido-dia-input" type="text" placeholder="Agregar producto manualmente..." style="flex:1;border:1px solid #c7d2fe;border-radius:8px;padding:7px 10px;font-size:13px;outline:none">
+        <input id="pedido-dia-input" type="text" placeholder="Agregar producto manualmente..." style="flex:1;border:1px solid #c7d2fe;border-radius:8px;padding:7px 10px;font-size:13px;outline:none"
+               onkeydown="if(event.key==='Enter') agregarManualPedidoDia()">
         <button class="btn btn-sm" style="background:#e0e7ff;color:#1a2fa8;border:none;padding:7px 12px;border-radius:8px;font-weight:600;white-space:nowrap" onclick="agregarManualPedidoDia()">+ Agregar</button>
       </div>
       <div id="pedido-dia-estado" style="font-size:12px;color:#dc2626;margin-top:6px;display:none"></div>
@@ -521,21 +526,26 @@ async function cargarAsesoresTienda(){
     const deAsesores=todos.filter(p=>p.fecha_creacion&&p.fecha_creacion.slice(0,10)===hoy&&p.tipo!=='especial'&&p.solicitante!==NOMBRE)
                           .sort((a,b)=>a.producto_nombre.localeCompare(b.producto_nombre,'es'));
     if(!deAsesores.length){c.innerHTML='<div style="color:#9ca3af;font-size:12px;text-align:center;padding:12px 0">Sin pedidos de asesores hoy</div>';return;}
+    // Guardar datos en mapa para que los handlers no dependan de strings en onclick
+    deAsesores.forEach(ped=>{
+      window._asesorDataMap[ped.id]={
+        texto: ped.producto_nombre+(ped.modelo_marca?' '+ped.modelo_marca:''),
+        tipo: ped.tipo||'faltante'
+      };
+    });
     const nPend=deAsesores.filter(p=>p.estado!=='llego').length;
     const nSurt=deAsesores.filter(p=>p.estado==='llego').length;
     const rows=deAsesores.map(ped=>{
       const surtido=ped.estado==='llego';
       const prod=ped.producto_nombre+(ped.modelo_marca?' '+ped.modelo_marca:'');
-      const prodEsc=prod.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      const tipoEsc=(ped.tipo||'faltante').replace(/'/g,"\\'");
-      return `<div id="fila-as-${ped.id}" style="display:flex;align-items:center;gap:7px;padding:5px 10px;border-bottom:1px solid #f3f4f6;opacity:${surtido?'0.4':'1'}">
+      return `<div id="fila-as-${ped.id}" style="display:flex;align-items:center;gap:7px;padding:6px 10px;border-bottom:1px solid #f3f4f6;opacity:${surtido?'0.4':'1'}">
         <span style="font-weight:700;color:#1a2fa8;font-size:12px;white-space:nowrap;flex-shrink:0">${ped.solicitante||'—'}</span>
         <span style="color:#d1d5db;font-size:11px;flex-shrink:0">·</span>
         <span style="font-size:12px;color:${surtido?'#9ca3af':'#1a1f36'};font-weight:600;${surtido?'text-decoration:line-through;':''}flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${prod}</span>
         <span class="badge ${ped.tipo}" style="font-size:10px;padding:1px 5px;flex-shrink:0;white-space:nowrap">${TIPO_CORTO_ENC[ped.tipo]||ped.tipo}</span>
         ${surtido
-          ? `<span style="font-size:10px;color:#6b7280;flex-shrink:0">✓ surtido</span>`
-          : `<button class="btn btn-sm" style="font-size:10px;padding:2px 9px;background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;font-weight:600;flex-shrink:0;white-space:nowrap" onclick="surtirAsesor(${ped.id},'${prodEsc}','${tipoEsc}',this)">Lo surtió</button>`
+          ? `<span style="font-size:10px;color:#16a34a;font-weight:600;flex-shrink:0">✓ surtido</span>`
+          : `<button class="btn btn-sm" style="font-size:10px;padding:2px 9px;background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;font-weight:600;flex-shrink:0;white-space:nowrap" onclick="surtirAsesor(${ped.id},this)">Lo surtió</button>`
         }
       </div>`;
     }).join('');
@@ -548,29 +558,34 @@ async function cargarAsesoresTienda(){
   }catch(e){c.innerHTML='<div style="color:#dc2626;font-size:12px;padding:8px 0">Error al cargar</div>';}
 }
 
-async function surtirAsesor(id,producto,tipo,btn){
-  btn.disabled=true;btn.textContent='...';
-  const res=await fetch(`/api/pedidos/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({estado:'llego',fecha_estimada:null})});
-  const data=await res.json();
-  if(data.ok){
-    _pedidoDia.push({texto:producto,tipo});
-    renderPedidoDia();
-    cargarAsesoresTienda();
-    mostrarToastTienda('Agregado al pedido del día ✓');
-  }else{btn.disabled=false;btn.textContent='Lo surtió';}
+async function surtirAsesor(id, btn){
+  const entry=window._asesorDataMap[id];
+  if(!entry) return;
+  btn.disabled=true; btn.textContent='...';
+  try{
+    const res=await fetch(`/api/pedidos/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({estado:'llego',fecha_estimada:null})});
+    const data=await res.json();
+    if(data.ok){
+      window._pedidoDia.push({texto:entry.texto, tipo:entry.tipo});
+      renderPedidoDia();
+      cargarAsesoresTienda();
+      mostrarToastTienda('Agregado al pedido del día ✓');
+    }else{btn.disabled=false; btn.textContent='Lo surtió';}
+  }catch(e){btn.disabled=false; btn.textContent='Lo surtió';}
 }
 
 function agregarManualPedidoDia(){
   const inp=document.getElementById('pedido-dia-input');
-  const txt=inp?.value.trim();
+  const txt=(inp?.value||'').trim();
   if(!txt) return;
-  _pedidoDia.push({texto:txt,tipo:'faltante'});
+  window._pedidoDia.push({texto:txt, tipo:'faltante'});
   inp.value='';
   renderPedidoDia();
+  inp.focus();
 }
 
 function quitarDePedidoDia(idx){
-  _pedidoDia.splice(idx,1);
+  window._pedidoDia.splice(idx,1);
   renderPedidoDia();
 }
 
@@ -578,36 +593,38 @@ function renderPedidoDia(){
   const c=document.getElementById('pedido-dia-lista');
   const btn=document.getElementById('btn-enviar-dia');
   if(!c) return;
-  if(!_pedidoDia.length){
+  const lista=window._pedidoDia;
+  if(!lista.length){
     c.innerHTML='<div style="color:#9ca3af;font-size:12px;font-style:italic;padding:4px 0 8px">Aún no hay productos — da "Lo surtió" arriba o agrega manualmente</div>';
     if(btn) btn.disabled=true;
     return;
   }
   if(btn) btn.disabled=false;
-  c.innerHTML=_pedidoDia.map((it,i)=>`
-    <div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #e0e7ff">
+  c.innerHTML=lista.map((it,i)=>`
+    <div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #e0e7ff">
       <span class="badge ${it.tipo}" style="font-size:10px;padding:1px 5px;flex-shrink:0">${TIPO_CORTO_ENC[it.tipo]||it.tipo}</span>
-      <span style="flex:1;font-size:12px;font-weight:600;color:#1a1f36">${it.texto}</span>
-      <button onclick="quitarDePedidoDia(${i})" style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:14px;line-height:1;padding:0 2px">✕</button>
+      <span style="flex:1;font-size:12px;font-weight:600;color:#1a1f36;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.texto}</span>
+      <button onclick="quitarDePedidoDia(${i})" style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:16px;line-height:1;padding:0 4px;flex-shrink:0" title="Quitar">✕</button>
     </div>`).join('');
 }
 
 async function enviarPedidoDia(){
-  if(!_pedidoDia.length) return;
+  const lista=window._pedidoDia;
+  if(!lista.length) return;
   const btn=document.getElementById('btn-enviar-dia');
   const est=document.getElementById('pedido-dia-estado');
   btn.disabled=true;btn.textContent='⏳ Enviando...';
   est.style.display='none';
   try{
-    const analizados=await Promise.all(_pedidoDia.map(it=>
+    const analizados=await Promise.all(lista.map(it=>
       fetch('/api/analizar-pedido',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({texto:it.texto})}).then(r=>r.json())
     ));
     const resultados=await Promise.all(analizados.map((a,i)=>{
-      const d=a.ok?a.data:{producto_nombre:_pedidoDia[i].texto,cantidad:'1',modelo_marca:'',nota:''};
-      const tipo=_pedidoDia[i].tipo||d.tipo||'faltante';
+      const d=a.ok?a.data:{producto_nombre:lista[i].texto,cantidad:'1',modelo_marca:'',nota:''};
+      const tipo=lista[i].tipo||d.tipo||'faltante';
       return fetch('/api/pedidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
         tipo,producto_id:null,
-        producto_nombre:d.producto_nombre||_pedidoDia[i].texto,
+        producto_nombre:d.producto_nombre||lista[i].texto,
         cantidad:d.cantidad||'1',modelo_marca:d.modelo_marca||'',nota:d.nota||''
       })}).then(r=>r.json());
     }));
@@ -616,11 +633,11 @@ async function enviarPedidoDia(){
     else{
       const n=resultados.length;
       btn.textContent=`✅ ${n} producto${n>1?'s':''} enviado${n>1?'s':''}`;
-      _pedidoDia=[];renderPedidoDia();
+      window._pedidoDia=[];renderPedidoDia();
       setTimeout(()=>{btn.textContent='🚀 Enviar pedido del día';},2500);
     }
   }catch(e){est.textContent='⚠️ Error de conexión';est.style.display='block';}
-  finally{if(btn.textContent.startsWith('⏳')) btn.textContent='🚀 Enviar pedido del día';btn.disabled=!_pedidoDia.length;}
+  finally{if(btn.textContent.startsWith('⏳')){btn.textContent='🚀 Enviar pedido del día';btn.disabled=!window._pedidoDia.length;}}
 }
 
 function mostrarToastTienda(msg){
