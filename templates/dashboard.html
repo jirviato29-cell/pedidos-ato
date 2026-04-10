@@ -409,6 +409,7 @@ async function confirmarPedidoConTipo(tipo){
       document.getElementById('ia-texto').value='';
       _iaDatos=null;
       cargarPedidosHoy();
+      if(typeof cargarListaTiendaHoy==='function') cargarListaTiendaHoy();
       setTimeout(()=>{ resumen.style.display='none'; },2500);
     }else{
       resumen.innerHTML='<div style="font-size:13px;color:#dc2626;text-align:center;padding:8px">⚠️ '+(data.msg||'Error al guardar')+'</div>';
@@ -514,50 +515,57 @@ async function renderTienda(){
         </div>
       </div>
     </div>
-    <div id="pedidos-hoy-container"></div>
-    <div id="equipo-tienda"></div>`;
-  cargarPedidosHoy();
-  cargarEquipoEnTienda();
+    <div id="lista-tienda-hoy" style="margin-top:14px"></div>`;
+  cargarListaTiendaHoy();
 }
 
-async function cargarEquipoEnTienda(){
-  const c=document.getElementById('equipo-tienda');
+async function cargarListaTiendaHoy(){
+  const c=document.getElementById('lista-tienda-hoy');
   if(!c) return;
-  const [usuarios,pedidos]=await Promise.all([
-    fetch('/api/usuarios').then(r=>r.json()),
-    fetch('/api/pedidos?estado=pendiente').then(r=>r.json())
-  ]);
-  const asesores=usuarios.filter(u=>u.rol==='asesor');
-  if(!asesores.length){c.innerHTML='';return;}
-  const hoy=new Date().toISOString().slice(0,10);
-  const pedidosEquipo=pedidos.filter(p=>p.fecha_creacion&&p.fecha_creacion.slice(0,10)===hoy&&p.solicitante!==NOMBRE);
-  if(!pedidosEquipo.length){c.innerHTML='<div style="color:#9ca3af;font-size:13px;text-align:center;padding:12px">Sin pedidos del equipo hoy</div>';return;}
-  const porAsesor={};
-  pedidosEquipo.forEach(p=>{const n=p.solicitante||'Sin nombre';if(!porAsesor[n])porAsesor[n]=[];porAsesor[n].push(p);});
-  const rows=Object.entries(porAsesor).map(([nombre,peds])=>`
-    <div style="margin-bottom:6px">
-      <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px">${nombre}</div>
-      ${peds.map(ped=>`<div style="display:flex;align-items:center;gap:7px;padding:6px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:7px;margin-bottom:3px">
-        <span class="badge ${ped.tipo}" style="font-size:10px;padding:1px 6px;flex-shrink:0;white-space:nowrap">${TIPO_CORTO_ENC[ped.tipo]||ped.tipo}</span>
-        <span style="flex:1;font-size:12px;font-weight:600;color:#1a1f36;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ped.producto_nombre}${ped.modelo_marca?' · '+ped.modelo_marca:''}</span>
-        <button class="btn btn-success btn-sm" style="font-size:10px;padding:2px 7px;flex-shrink:0" onclick="aprobarEquipo(${ped.id},this)">✅ Aprobar</button>
-        <button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 7px;flex-shrink:0" onclick="rechazarEquipo(${ped.id},this)">❌ Rechazar</button>
-      </div>`).join('')}
-    </div>`).join('');
-  c.innerHTML=`<div style="font-weight:700;color:#1a1f36;font-size:13px;margin:14px 0 8px">👥 Pedidos de tu equipo hoy</div>${rows}`;
+  c.innerHTML='<div style="color:#9ca3af;font-size:13px;text-align:center;padding:12px">Cargando...</div>';
+  try{
+    const todos=await fetch('/api/pedidos').then(r=>r.json());
+    const hoy=new Date().toISOString().slice(0,10);
+    const deHoy=todos.filter(p=>p.fecha_creacion&&p.fecha_creacion.slice(0,10)===hoy&&p.tipo!=='especial')
+                     .sort((a,b)=>a.producto_nombre.localeCompare(b.producto_nombre,'es'));
+    if(!deHoy.length){c.innerHTML='<div style="color:#9ca3af;font-size:13px;text-align:center;padding:16px">Sin pedidos hoy</div>';return;}
+    const ESTADO_LABEL={pendiente:'⏳ Pendiente',llego:'✅ Surtido',bodega:'📦 En bodega','no-surtido':'❌ No surtido',camino:'🚚 En camino'};
+    const rows=deHoy.map(ped=>{
+      const surtido=ped.estado==='llego';
+      const quienPidio=ped.solicitante===NOMBRE?'Encargado':ped.solicitante||'—';
+      return `<div id="fila-tid-${ped.id}" style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#fff;border:1px solid ${surtido?'#d1fae5':'#e5e7eb'};border-radius:8px;margin-bottom:4px;opacity:${surtido?'0.55':'1'}">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;color:#1a1f36;font-size:13px;${surtido?'text-decoration:line-through;color:#6b7280':''};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ped.producto_nombre}${ped.modelo_marca?' · '+ped.modelo_marca:''}</div>
+          <div style="display:flex;align-items:center;gap:5px;margin-top:2px;flex-wrap:wrap">
+            <span class="badge ${ped.tipo}" style="font-size:10px;padding:1px 5px">${TIPO_CORTO_ENC[ped.tipo]||ped.tipo}</span>
+            <span style="font-size:11px;color:#6b7280">${quienPidio}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          ${surtido
+            ? `<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#f1f5f9;color:#374151;border:1px solid #d1d5db" onclick="cambiarEstadoTienda(${ped.id},'pendiente',this)">↩ Pendiente</button>`
+            : `<button class="btn btn-sm" style="font-size:10px;padding:2px 8px;background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;font-weight:600" onclick="cambiarEstadoTienda(${ped.id},'llego',this)">✅ Surtido</button>`
+          }
+        </div>
+      </div>`;
+    }).join('');
+    const nPend=deHoy.filter(p=>p.estado!=='llego').length;
+    const nSurt=deHoy.filter(p=>p.estado==='llego').length;
+    c.innerHTML=`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-weight:700;color:#1a1f36;font-size:13px">📋 Pedidos del día (${deHoy.length})</div>
+        <div style="font-size:11px;color:#6b7280">${nPend} pendiente${nPend!==1?'s':''} · ${nSurt} surtido${nSurt!==1?'s':''}</div>
+      </div>
+      ${rows}`;
+  }catch(e){c.innerHTML='<div style="color:#dc2626;font-size:13px;text-align:center;padding:12px">Error al cargar pedidos</div>';}
 }
 
-function aprobarEquipo(id,btn){
-  const fila=btn.closest('div[style*="border:1px"]');
-  if(fila){fila.style.opacity='0.4';fila.style.pointerEvents='none';}
-  btn.textContent='✅ Aprobado';
-}
-
-async function rechazarEquipo(id,btn){
-  if(!confirm('¿Rechazar y eliminar este pedido?')) return;
-  const res=await fetch(`/api/pedidos/${id}`,{method:'DELETE'});
+async function cambiarEstadoTienda(id,estado,btn){
+  btn.disabled=true;
+  const res=await fetch(`/api/pedidos/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({estado,fecha_estimada:null})});
   const data=await res.json();
-  if(data.ok){const fila=btn.closest('div[style*="border:1px"]');if(fila)fila.remove();}
+  if(data.ok) cargarListaTiendaHoy();
+  else btn.disabled=false;
 }
 
 // ── ENCARGADO: FALTA EN BODEGA ────────────────────────────────────────────────
