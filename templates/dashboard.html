@@ -377,7 +377,8 @@ async function analizarConIA(){
       return;
     }
     _iaDatos=data.data;
-    document.getElementById('form-manual').style.display='none';
+    const formManual=document.getElementById('form-manual');
+    if(formManual) formManual.style.display='none';
     resumen.style.display='block';
   }catch(e){
     estado.textContent='⚠️ Error de conexión';
