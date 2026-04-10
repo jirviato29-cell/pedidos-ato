@@ -490,87 +490,137 @@ async function enviarCarrito(){
 // ── ENCARGADO: PEDIDOS TIENDA ─────────────────────────────────────────────────
 const TIPO_CORTO_ENC={urgente:'🚨 Urgente',faltante:'📦 Lo vendí',demanda:'📢 Demanda',sugerido:'📢 Demanda',especial:'⚠️ Falta bodega'};
 
+let _pedidoDia=[];   // {texto, tipo}
+
 async function renderTienda(){
+  _pedidoDia=[];
   const p=document.getElementById('panel-tienda');
   p.innerHTML=`
-    <div class="alert-ok" id="ok-nuevo">✅ Pedido guardado</div>
-    <div id="lista-tienda-hoy" style="margin-bottom:16px"></div>
+    <div id="sec-asesores" style="margin-bottom:16px"></div>
     <div class="card" style="border-color:#c7d2fe;background:#f5f7ff">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-        <span style="font-size:20px">✨</span>
-        <div>
-          <div style="font-weight:700;color:#1a2fa8;font-size:14px">¿Qué necesitas pedir hoy?</div>
-          <div style="font-size:12px;color:#6b7280">Agrega tu propio pedido</div>
-        </div>
+      <div style="font-weight:700;color:#1a2fa8;font-size:14px;margin-bottom:10px">📦 Pedido del día</div>
+      <div id="pedido-dia-lista" style="margin-bottom:8px"></div>
+      <div style="display:flex;gap:6px">
+        <input id="pedido-dia-input" type="text" placeholder="Agregar producto manualmente..." style="flex:1;border:1px solid #c7d2fe;border-radius:8px;padding:7px 10px;font-size:13px;outline:none">
+        <button class="btn btn-sm" style="background:#e0e7ff;color:#1a2fa8;border:none;padding:7px 12px;border-radius:8px;font-weight:600;white-space:nowrap" onclick="agregarManualPedidoDia()">+ Agregar</button>
       </div>
-      <textarea id="ia-texto" placeholder="Describe tu pedido... ej: se me vendió funda iPhone 15" style="min-height:70px;border-color:#c7d2fe"></textarea>
-      <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <button id="btn-ia" class="btn btn-primary btn-sm" onclick="analizarConIA()">💾 Guardar pedido</button>
-        <span id="ia-estado" style="font-size:13px;color:#6b7280;display:none"></span>
-      </div>
-      <div id="ia-resumen" style="display:none;margin-top:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px">
-        <div style="font-size:13px;font-weight:600;color:#1d4ed8;margin-bottom:8px">¿Por qué lo necesitas?</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button class="btn btn-sm" style="background:#fff;border:1.5px solid #bfdbfe;color:#1d4ed8;text-align:left;padding:10px 14px;border-radius:10px;font-size:13px" onclick="confirmarPedidoConTipo('faltante')">📦 Lo vendí y me falta en el módulo</button>
-          <button class="btn btn-sm" style="background:#fff;border:1.5px solid #bfdbfe;color:#1d4ed8;text-align:left;padding:10px 14px;border-radius:10px;font-size:13px" onclick="confirmarPedidoConTipo('demanda')">📢 Me lo piden mucho y no tengo</button>
-          <button class="btn btn-sm" style="background:#fff;border:1.5px solid #bfdbfe;color:#1d4ed8;text-align:left;padding:10px 14px;border-radius:10px;font-size:13px" onclick="confirmarPedidoConTipo('urgente')">🚨 Es urgente, el cliente lo necesita hoy</button>
-        </div>
-      </div>
+      <div id="pedido-dia-estado" style="font-size:12px;color:#dc2626;margin-top:6px;display:none"></div>
+      <button id="btn-enviar-dia" class="btn btn-primary btn-sm" style="margin-top:12px;width:100%;padding:10px;font-size:14px" onclick="enviarPedidoDia()">🚀 Enviar pedido del día</button>
     </div>`;
-  cargarListaTiendaHoy();
+  renderPedidoDia();
+  cargarAsesoresTienda();
 }
 
-async function cargarListaTiendaHoy(){
-  const c=document.getElementById('lista-tienda-hoy');
+async function cargarAsesoresTienda(){
+  const c=document.getElementById('sec-asesores');
   if(!c) return;
-  c.innerHTML='<div style="color:#9ca3af;font-size:13px;text-align:center;padding:12px">Cargando...</div>';
+  c.innerHTML='<div style="color:#9ca3af;font-size:12px;padding:8px 0">Cargando pedidos...</div>';
   try{
     const todos=await fetch('/api/pedidos').then(r=>r.json());
     const hoy=new Date().toISOString().slice(0,10);
-    const deHoy=todos.filter(p=>p.fecha_creacion&&p.fecha_creacion.slice(0,10)===hoy&&p.tipo!=='especial')
-                     .sort((a,b)=>a.producto_nombre.localeCompare(b.producto_nombre,'es'));
-    if(!deHoy.length){c.innerHTML='<div style="color:#9ca3af;font-size:13px;text-align:center;padding:16px">Sin pedidos hoy</div>';return;}
-    const rows=deHoy.map(ped=>{
+    const deAsesores=todos.filter(p=>p.fecha_creacion&&p.fecha_creacion.slice(0,10)===hoy&&p.tipo!=='especial'&&p.solicitante!==NOMBRE)
+                          .sort((a,b)=>a.producto_nombre.localeCompare(b.producto_nombre,'es'));
+    if(!deAsesores.length){c.innerHTML='<div style="color:#9ca3af;font-size:12px;text-align:center;padding:12px 0">Sin pedidos de asesores hoy</div>';return;}
+    const nPend=deAsesores.filter(p=>p.estado!=='llego').length;
+    const nSurt=deAsesores.filter(p=>p.estado==='llego').length;
+    const rows=deAsesores.map(ped=>{
       const surtido=ped.estado==='llego';
-      const quienPidio=ped.solicitante===NOMBRE?'Encargado':ped.solicitante||'—';
       const prod=ped.producto_nombre+(ped.modelo_marca?' '+ped.modelo_marca:'');
-      const prodEsc=prod.replace(/'/g,"\\'");
-      return `<div id="fila-tid-${ped.id}" style="display:flex;align-items:center;gap:8px;padding:5px 10px;border-bottom:1px solid #f3f4f6;opacity:${surtido?'0.45':'1'}">
-        <span style="font-weight:700;color:#1a2fa8;font-size:12px;white-space:nowrap;flex-shrink:0">${quienPidio}</span>
-        <span style="color:#6b7280;font-size:11px;flex-shrink:0">·</span>
-        <span style="font-size:12px;color:${surtido?'#9ca3af':'#1a1f36'};font-weight:600;${surtido?'text-decoration:line-through':''}flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${prod}</span>
+      const prodEsc=prod.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const tipoEsc=(ped.tipo||'faltante').replace(/'/g,"\\'");
+      return `<div id="fila-as-${ped.id}" style="display:flex;align-items:center;gap:7px;padding:5px 10px;border-bottom:1px solid #f3f4f6;opacity:${surtido?'0.4':'1'}">
+        <span style="font-weight:700;color:#1a2fa8;font-size:12px;white-space:nowrap;flex-shrink:0">${ped.solicitante||'—'}</span>
+        <span style="color:#d1d5db;font-size:11px;flex-shrink:0">·</span>
+        <span style="font-size:12px;color:${surtido?'#9ca3af':'#1a1f36'};font-weight:600;${surtido?'text-decoration:line-through;':''}flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${prod}</span>
         <span class="badge ${ped.tipo}" style="font-size:10px;padding:1px 5px;flex-shrink:0;white-space:nowrap">${TIPO_CORTO_ENC[ped.tipo]||ped.tipo}</span>
         ${surtido
-          ? `<button class="btn btn-sm" style="font-size:10px;padding:1px 7px;background:#f1f5f9;color:#374151;border:1px solid #d1d5db;flex-shrink:0" onclick="cambiarEstadoTienda(${ped.id},'pendiente',this)">↩</button>`
-          : `<button class="btn btn-sm" style="font-size:10px;padding:1px 7px;background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;font-weight:600;flex-shrink:0" onclick="cambiarEstadoTienda(${ped.id},'llego',this,'${prodEsc}')">✅ Surtido</button>`
+          ? `<span style="font-size:10px;color:#6b7280;flex-shrink:0">✓ surtido</span>`
+          : `<button class="btn btn-sm" style="font-size:10px;padding:2px 9px;background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;font-weight:600;flex-shrink:0;white-space:nowrap" onclick="surtirAsesor(${ped.id},'${prodEsc}','${tipoEsc}',this)">Lo surtió</button>`
         }
       </div>`;
     }).join('');
-    const nPend=deHoy.filter(p=>p.estado!=='llego').length;
-    const nSurt=deHoy.filter(p=>p.estado==='llego').length;
     c.innerHTML=`
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <div style="font-weight:700;color:#1a1f36;font-size:13px">📋 Pedidos del día (${deHoy.length})</div>
+        <div style="font-weight:700;color:#1a1f36;font-size:13px">👥 Pedidos de asesores (${deAsesores.length})</div>
         <div style="font-size:11px;color:#6b7280">${nPend} pendiente${nPend!==1?'s':''} · ${nSurt} surtido${nSurt!==1?'s':''}</div>
       </div>
       <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">${rows}</div>`;
-  }catch(e){c.innerHTML='<div style="color:#dc2626;font-size:13px;text-align:center;padding:12px">Error al cargar pedidos</div>';}
+  }catch(e){c.innerHTML='<div style="color:#dc2626;font-size:12px;padding:8px 0">Error al cargar</div>';}
 }
 
-async function cambiarEstadoTienda(id,estado,btn,producto){
-  btn.disabled=true;
-  const res=await fetch(`/api/pedidos/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({estado,fecha_estimada:null})});
+async function surtirAsesor(id,producto,tipo,btn){
+  btn.disabled=true;btn.textContent='...';
+  const res=await fetch(`/api/pedidos/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({estado:'llego',fecha_estimada:null})});
   const data=await res.json();
   if(data.ok){
-    if(estado==='llego'&&producto){
-      const ta=document.getElementById('ia-texto');
-      if(ta){
-        ta.value=ta.value.trim()?(ta.value.trim()+'\n'+producto):producto;
-        mostrarToastTienda('Agregado a tu pedido ✓');
-      }
+    _pedidoDia.push({texto:producto,tipo});
+    renderPedidoDia();
+    cargarAsesoresTienda();
+    mostrarToastTienda('Agregado al pedido del día ✓');
+  }else{btn.disabled=false;btn.textContent='Lo surtió';}
+}
+
+function agregarManualPedidoDia(){
+  const inp=document.getElementById('pedido-dia-input');
+  const txt=inp?.value.trim();
+  if(!txt) return;
+  _pedidoDia.push({texto:txt,tipo:'faltante'});
+  inp.value='';
+  renderPedidoDia();
+}
+
+function quitarDePedidoDia(idx){
+  _pedidoDia.splice(idx,1);
+  renderPedidoDia();
+}
+
+function renderPedidoDia(){
+  const c=document.getElementById('pedido-dia-lista');
+  const btn=document.getElementById('btn-enviar-dia');
+  if(!c) return;
+  if(!_pedidoDia.length){
+    c.innerHTML='<div style="color:#9ca3af;font-size:12px;font-style:italic;padding:4px 0 8px">Aún no hay productos — da "Lo surtió" arriba o agrega manualmente</div>';
+    if(btn) btn.disabled=true;
+    return;
+  }
+  if(btn) btn.disabled=false;
+  c.innerHTML=_pedidoDia.map((it,i)=>`
+    <div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #e0e7ff">
+      <span class="badge ${it.tipo}" style="font-size:10px;padding:1px 5px;flex-shrink:0">${TIPO_CORTO_ENC[it.tipo]||it.tipo}</span>
+      <span style="flex:1;font-size:12px;font-weight:600;color:#1a1f36">${it.texto}</span>
+      <button onclick="quitarDePedidoDia(${i})" style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:14px;line-height:1;padding:0 2px">✕</button>
+    </div>`).join('');
+}
+
+async function enviarPedidoDia(){
+  if(!_pedidoDia.length) return;
+  const btn=document.getElementById('btn-enviar-dia');
+  const est=document.getElementById('pedido-dia-estado');
+  btn.disabled=true;btn.textContent='⏳ Enviando...';
+  est.style.display='none';
+  try{
+    const analizados=await Promise.all(_pedidoDia.map(it=>
+      fetch('/api/analizar-pedido',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({texto:it.texto})}).then(r=>r.json())
+    ));
+    const resultados=await Promise.all(analizados.map((a,i)=>{
+      const d=a.ok?a.data:{producto_nombre:_pedidoDia[i].texto,cantidad:'1',modelo_marca:'',nota:''};
+      const tipo=_pedidoDia[i].tipo||d.tipo||'faltante';
+      return fetch('/api/pedidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        tipo,producto_id:null,
+        producto_nombre:d.producto_nombre||_pedidoDia[i].texto,
+        cantidad:d.cantidad||'1',modelo_marca:d.modelo_marca||'',nota:d.nota||''
+      })}).then(r=>r.json());
+    }));
+    const errores=resultados.filter(r=>!r.ok);
+    if(errores.length){est.textContent=`⚠️ ${errores.length} producto(s) no se guardaron`;est.style.display='block';}
+    else{
+      const n=resultados.length;
+      btn.textContent=`✅ ${n} producto${n>1?'s':''} enviado${n>1?'s':''}`;
+      _pedidoDia=[];renderPedidoDia();
+      setTimeout(()=>{btn.textContent='🚀 Enviar pedido del día';},2500);
     }
-    cargarListaTiendaHoy();
-  }else btn.disabled=false;
+  }catch(e){est.textContent='⚠️ Error de conexión';est.style.display='block';}
+  finally{if(btn.textContent.startsWith('⏳')) btn.textContent='🚀 Enviar pedido del día';btn.disabled=!_pedidoDia.length;}
 }
 
 function mostrarToastTienda(msg){
